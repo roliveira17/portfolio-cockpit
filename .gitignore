@@ -26,6 +26,10 @@ ENV/
 # Streamlit secrets (NUNCA commitar)
 .streamlit/secrets.toml
 
+# Supabase local
+supabase/.env
+supabase/.temp/
+
 # Environment variables
 .env
 .env.local
