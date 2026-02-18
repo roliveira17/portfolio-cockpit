@@ -8,7 +8,7 @@
 ## Sprint 1 — MVP Core
 
 ### Setup & Infraestrutura
-- [-] 🏗️ 2026/02/18 1.1 Setup projeto (repo, pyproject.toml, estrutura de diretórios, .streamlit/config.toml, .gitignore) — estrutura criada, falta `uv sync` (bloqueado por Smart App Control)
+- [x] ✅ 2026/02/18 1.1 Setup projeto (repo, pyproject.toml, estrutura de diretórios, .streamlit/config.toml, .gitignore)
 - [ ] 1.2 Setup Supabase (criar projeto, tabelas, RLS policies)
 - [ ] 1.3 Módulo `data/db.py` (conexão Supabase, funções CRUD)
 - [ ] 1.4 Seed data (popular positions e transactions com dados do PRD seção 4)
