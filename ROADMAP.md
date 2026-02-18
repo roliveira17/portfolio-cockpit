@@ -1,6 +1,6 @@
 # ROADMAP — Portfolio Cockpit
 
-> Última atualização: 2026-02-18 (sessão 1)
+> Última atualização: 2026-02-18 (sessão 2)
 > Spec completa: docs/specs/PRD.md
 
 ---
@@ -9,29 +9,29 @@
 
 ### Setup & Infraestrutura
 - [x] ✅ 2026/02/18 1.1 Setup projeto (repo, pyproject.toml, estrutura de diretórios, .streamlit/config.toml, .gitignore)
-- [ ] 1.2 Setup Supabase (criar projeto, tabelas, RLS policies)
-- [ ] 1.3 Módulo `data/db.py` (conexão Supabase, funções CRUD)
-- [ ] 1.4 Seed data (popular positions e transactions com dados do PRD seção 4)
+- [x] ✅ 2026/02/18 1.2 Setup Supabase (criar projeto, tabelas, RLS policies)
+- [x] ✅ 2026/02/18 1.3 Módulo `data/db.py` (conexão Supabase, funções CRUD)
+- [x] ✅ 2026/02/18 1.4 Seed data (popular positions e transactions com dados do PRD seção 4)
 
 ### Utils (dependências dos módulos de data)
-- [ ] 1.5 Módulo `utils/constants.py` (tickers, setores, benchmarks, cores)
-- [ ] 1.6 Módulo `utils/formatting.py` (formatação de moedas, %, datas)
+- [x] ✅ 2026/02/18 1.5 Módulo `utils/constants.py` (tickers, setores, benchmarks, cores)
+- [x] ✅ 2026/02/18 1.6 Módulo `utils/formatting.py` (formatação de moedas, %, datas)
 
 ### Data Layer
-- [ ] 1.7 Módulo `data/market_data.py` (cotações BR via brapi + US via yfinance, com cache)
-- [ ] 1.8 Módulo `data/macro_data.py` (indicadores macro BCB + yfinance, com cache)
-- [ ] 1.9 Módulo `utils/currency.py` (conversão BRL↔USD via PTAX)
+- [x] ✅ 2026/02/18 1.7 Módulo `data/market_data.py` (cotações BR via brapi + US via yfinance, com cache)
+- [x] ✅ 2026/02/18 1.8 Módulo `data/macro_data.py` (indicadores macro BCB + yfinance, com cache)
+- [x] ✅ 2026/02/18 1.9 Módulo `utils/currency.py` (conversão BRL↔USD via PTAX)
 
 ### Analytics
-- [ ] 1.10 Módulo `analytics/portfolio.py` (peso atual, P&L, exposição setorial, exposição por fator)
+- [x] ✅ 2026/02/18 1.10 Módulo `analytics/portfolio.py` (peso atual, P&L, exposição setorial, exposição por fator)
 
 ### Páginas
-- [ ] 1.11 Entry point `app.py` (config multipage, sidebar)
-- [ ] 1.12 Auth básico (proteção com senha via st.secrets)
-- [ ] 1.13 Página Overview (layout completo: KPIs, donut, top movers, performance chart, fatores)
-- [ ] 1.14 Página Positions (tabela sortável, filtros, detalhes expansíveis, P&L)
-- [ ] 1.15 Página Risk & Macro — aba Macro (KPI cards macro, curva de juros)
-- [ ] 1.16 Página Risk & Macro — aba Risk (correlation heatmap, HHI, risk metrics)
+- [x] ✅ 2026/02/18 1.11 Entry point `app.py` (config multipage, sidebar)
+- [x] ✅ 2026/02/18 1.12 Auth básico (proteção com senha via st.secrets)
+- [x] ✅ 2026/02/18 1.13 Página Overview (KPIs, donut, top movers, exposição por fator, catalisadores)
+- [x] ✅ 2026/02/18 1.14 Página Positions (tabela sortável, filtros, detalhes expansíveis, P&L, export CSV)
+- [x] ✅ 2026/02/18 1.15 Página Risk & Macro — aba Macro (KPI cards macro, matriz impacto)
+- [x] ✅ 2026/02/18 1.16 Página Risk & Macro — aba Risk (correlation heatmap, HHI, diversificação)
 
 ### Deploy
 - [ ] 1.17 Deploy Streamlit Cloud (testar acesso remoto + auth)
