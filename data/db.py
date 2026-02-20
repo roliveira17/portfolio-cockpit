@@ -204,3 +204,8 @@ def get_latest_portfolio_snapshot() -> dict | None:
     """Retorna o snapshot mais recente do portfólio."""
     res = get_client().table("portfolio_snapshots").select("*").order("date", desc=True).limit(1).execute()
     return res.data[0] if res.data else None
+
+
+def save_portfolio_snapshot(data: dict) -> dict:
+    """Salva snapshot do portfólio. Chamado no page load do Overview (1x/dia)."""
+    return insert_row("portfolio_snapshots", data)

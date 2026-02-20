@@ -127,6 +127,64 @@ def fetch_all_quotes() -> dict[str, dict]:
 
 
 @st.cache_data(ttl=CACHE_TTL_QUOTES)
+def fetch_batch_price_history(
+    tickers_br: list[str] | None = None,
+    tickers_us: list[str] | None = None,
+    period: str = "6mo",
+):
+    """Busca histórico de fechamento de múltiplos tickers em uma chamada.
+
+    Retorna DataFrame com DatetimeIndex e uma coluna por ticker (nomes originais),
+    ou None se não houver dados.
+    """
+    import pandas as pd
+
+    all_yf = []
+    rename_map = {}
+
+    for t in (tickers_br or []):
+        yf_t = f"{t}.SA"
+        all_yf.append(yf_t)
+        rename_map[yf_t] = t
+    for t in (tickers_us or []):
+        all_yf.append(t)
+        rename_map[t] = t
+
+    if not all_yf:
+        return None
+
+    try:
+        data = yf.download(all_yf, period=period, progress=False)
+    except Exception:
+        logger.warning("fetch_batch_price_history: yf.download falhou")
+        return None
+
+    if data.empty:
+        return None
+
+    # Extrair coluna Close
+    has_close = "Close" in data.columns
+    if not has_close and hasattr(data.columns, "get_level_values"):
+        has_close = "Close" in data.columns.get_level_values(0)
+
+    if has_close:
+        closes = data["Close"] if isinstance(data["Close"], pd.DataFrame) else data[["Close"]]
+    else:
+        return None
+
+    # Renomear colunas de volta para tickers originais
+    if isinstance(closes, pd.Series):
+        ticker_name = all_yf[0]
+        closes = closes.to_frame(name=rename_map.get(ticker_name, ticker_name))
+    else:
+        closes = closes.rename(columns=rename_map)
+
+    # Remover colunas com todos NaN
+    closes = closes.dropna(axis=1, how="all")
+    return closes if not closes.empty else None
+
+
+@st.cache_data(ttl=CACHE_TTL_QUOTES)
 def fetch_price_history(ticker: str, period: str = "6mo", market: str = "BR"):
     """Retorna DataFrame com histórico de preços (Date, Close) via yfinance."""
     yf_ticker = f"{ticker}.SA" if market == "BR" else ticker
