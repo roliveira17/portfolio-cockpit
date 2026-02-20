@@ -17,6 +17,9 @@ st.header("🔬 Simulator")
 
 # --- Carregar dados ---
 positions = get_positions(active_only=True)
+if not positions:
+    st.warning("Não foi possível carregar posições. Verifique a conexão com o Supabase.")
+    st.stop()
 quotes = fetch_all_quotes()
 df = build_portfolio_df(positions, quotes)
 
@@ -161,18 +164,19 @@ elif mode == "Stress Test":
         if per_pos:
             pos_df = pd.DataFrame(per_pos)
             pos_df = pos_df.sort_values("impact_pct")
-            st.dataframe(
-                pos_df[["ticker", "current_value_brl", "impact_pct", "impact_brl", "new_value_brl"]].rename(
-                    columns={
-                        "ticker": "Ticker",
-                        "current_value_brl": "Valor Atual (R$)",
-                        "impact_pct": "Impacto (%)",
-                        "impact_brl": "Impacto (R$)",
-                        "new_value_brl": "Novo Valor (R$)",
-                    }
-                ),
-                use_container_width=True,
-                hide_index=True,
+            display_cols = ["ticker", "current_value_brl", "impact_pct", "impact_brl", "new_value_brl"]
+            renamed = pos_df[display_cols].rename(columns={
+                "ticker": "Ticker",
+                "current_value_brl": "Valor Atual (R$)",
+                "impact_pct": "Impacto (%)",
+                "impact_brl": "Impacto (R$)",
+                "new_value_brl": "Novo Valor (R$)",
+            })
+            st.dataframe(renamed, use_container_width=True, hide_index=True)
+            csv_stress = renamed.to_csv(index=False)
+            st.download_button(
+                "📥 Exportar CSV", csv_stress,
+                "stress_test.csv", "text/csv",
             )
 
 # ============================================================

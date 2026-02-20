@@ -1,8 +1,12 @@
 """Conexão Supabase e funções CRUD para todas as tabelas."""
 
+import logging
+
 import streamlit as st
 
 from supabase import Client, create_client
+
+logger = logging.getLogger(__name__)
 
 
 @st.cache_resource
@@ -20,8 +24,12 @@ def get_client() -> Client:
 
 def fetch_all(table: str, order_by: str = "created_at", ascending: bool = False) -> list[dict]:
     """Busca todos os registros de uma tabela, ordenados."""
-    res = get_client().table(table).select("*").order(order_by, desc=not ascending).execute()
-    return res.data
+    try:
+        res = get_client().table(table).select("*").order(order_by, desc=not ascending).execute()
+        return res.data
+    except Exception:
+        logger.warning(f"Supabase: falha ao buscar {table}")
+        return []
 
 
 def fetch_by_id(table: str, row_id: str) -> dict | None:
@@ -60,10 +68,14 @@ def delete_row(table: str, row_id: str) -> None:
 
 def get_positions(active_only: bool = True) -> list[dict]:
     """Retorna posições, opcionalmente apenas ativas."""
-    query = get_client().table("positions").select("*")
-    if active_only:
-        query = query.eq("is_active", True)
-    return query.order("sector").execute().data
+    try:
+        query = get_client().table("positions").select("*")
+        if active_only:
+            query = query.eq("is_active", True)
+        return query.order("sector").execute().data
+    except Exception:
+        logger.warning("Supabase: falha ao buscar positions")
+        return []
 
 
 def get_position_by_ticker(ticker: str) -> dict | None:
@@ -92,7 +104,11 @@ def get_transactions(ticker: str | None = None) -> list[dict]:
 
 def get_theses() -> list[dict]:
     """Retorna todas as teses."""
-    return get_client().table("theses").select("*").order("ticker").execute().data
+    try:
+        return get_client().table("theses").select("*").order("ticker").execute().data
+    except Exception:
+        logger.warning("Supabase: falha ao buscar theses")
+        return []
 
 
 def get_thesis_by_ticker(ticker: str) -> dict | None:
@@ -108,16 +124,20 @@ def get_thesis_by_ticker(ticker: str) -> dict | None:
 
 def get_upcoming_catalysts(limit: int = 10) -> list[dict]:
     """Retorna próximos catalisadores não completados, ordenados por data."""
-    return (
-        get_client()
-        .table("catalysts")
-        .select("*")
-        .eq("completed", False)
-        .order("expected_date")
-        .limit(limit)
-        .execute()
-        .data
-    )
+    try:
+        return (
+            get_client()
+            .table("catalysts")
+            .select("*")
+            .eq("completed", False)
+            .order("expected_date")
+            .limit(limit)
+            .execute()
+            .data
+        )
+    except Exception:
+        logger.warning("Supabase: falha ao buscar catalysts")
+        return []
 
 
 def get_catalysts_by_ticker(ticker: str) -> list[dict]:
@@ -166,7 +186,11 @@ def get_latest_deep_dive(ticker: str) -> dict | None:
 
 def get_all_deep_dives() -> list[dict]:
     """Retorna todos os deep dives, ordenados por data (mais recente primeiro)."""
-    return get_client().table("deep_dives").select("*").order("date", desc=True).execute().data
+    try:
+        return get_client().table("deep_dives").select("*").order("date", desc=True).execute().data
+    except Exception:
+        logger.warning("Supabase: falha ao buscar deep_dives")
+        return []
 
 
 def get_next_deep_dive_version(ticker: str) -> int:
@@ -184,10 +208,14 @@ def get_next_deep_dive_version(ticker: str) -> int:
 
 def get_analysis_reports(report_type: str | None = None) -> list[dict]:
     """Retorna relatórios, opcionalmente filtrados por tipo."""
-    query = get_client().table("analysis_reports").select("*")
-    if report_type:
-        query = query.eq("report_type", report_type)
-    return query.order("date", desc=True).execute().data
+    try:
+        query = get_client().table("analysis_reports").select("*")
+        if report_type:
+            query = query.eq("report_type", report_type)
+        return query.order("date", desc=True).execute().data
+    except Exception:
+        logger.warning("Supabase: falha ao buscar analysis_reports")
+        return []
 
 
 # ============================================================
@@ -197,13 +225,21 @@ def get_analysis_reports(report_type: str | None = None) -> list[dict]:
 
 def get_portfolio_snapshots() -> list[dict]:
     """Retorna todos os snapshots do portfólio, ordenados por data."""
-    return get_client().table("portfolio_snapshots").select("*").order("date").execute().data
+    try:
+        return get_client().table("portfolio_snapshots").select("*").order("date").execute().data
+    except Exception:
+        logger.warning("Supabase: falha ao buscar portfolio_snapshots")
+        return []
 
 
 def get_latest_portfolio_snapshot() -> dict | None:
     """Retorna o snapshot mais recente do portfólio."""
-    res = get_client().table("portfolio_snapshots").select("*").order("date", desc=True).limit(1).execute()
-    return res.data[0] if res.data else None
+    try:
+        res = get_client().table("portfolio_snapshots").select("*").order("date", desc=True).limit(1).execute()
+        return res.data[0] if res.data else None
+    except Exception:
+        logger.warning("Supabase: falha ao buscar último portfolio_snapshot")
+        return None
 
 
 def save_portfolio_snapshot(data: dict) -> dict:

@@ -105,6 +105,23 @@ with tab_macro:
 
     c8.metric("IPCA 12m", fmt_pct(macro_br.get("ipca_12m"), decimals=2))
 
+    # --- Celulose BHKP (input manual - Task 4.6) ---
+    st.markdown("---")
+    st.subheader("Celulose BHKP")
+    bhkp_col1, bhkp_col2 = st.columns([2, 3])
+    with bhkp_col1:
+        bhkp_price = st.number_input(
+            "Preço BHKP (USD/ton)", min_value=0.0, step=1.0,
+            value=st.session_state.get("bhkp_price", 0.0),
+            help="Inserir manualmente. Fonte: Fastmarkets ou relatórios setoriais.",
+        )
+        st.session_state["bhkp_price"] = bhkp_price
+    with bhkp_col2:
+        if bhkp_price > 0:
+            st.metric("BHKP", f"US$ {bhkp_price:.0f}/ton")
+        else:
+            st.info("Insira o preço atual da celulose BHKP manualmente.")
+
     st.markdown("---")
 
     # --- Stress Matrix dinâmico ---
@@ -139,21 +156,21 @@ with tab_risk:
     df = build_portfolio_df(positions, quotes)
 
     # --- Correlation Matrix ---
-    st.subheader("Correlation Matrix (90 dias)")
-    corr_matrix = _calc_correlation_matrix()
-    if corr_matrix is not None and not corr_matrix.empty:
-        fig_corr = px.imshow(
-            corr_matrix,
-            text_auto=".2f",
-            color_continuous_scale="RdBu_r",
-            zmin=-1,
-            zmax=1,
-            aspect="auto",
-        )
-        fig_corr.update_layout(margin=dict(t=30, b=30), height=500)
-        st.plotly_chart(fig_corr, use_container_width=True)
-    else:
-        st.info("Dados insuficientes para calcular correlação.")
+    with st.expander("Correlation Matrix (90 dias)", expanded=True):
+        corr_matrix = _calc_correlation_matrix()
+        if corr_matrix is not None and not corr_matrix.empty:
+            fig_corr = px.imshow(
+                corr_matrix,
+                text_auto=".2f",
+                color_continuous_scale="RdBu_r",
+                zmin=-1,
+                zmax=1,
+                aspect="auto",
+            )
+            fig_corr.update_layout(margin=dict(t=30, b=30), height=500)
+            st.plotly_chart(fig_corr, use_container_width=True)
+        else:
+            st.info("Dados insuficientes para calcular correlação.")
 
     st.markdown("---")
 
