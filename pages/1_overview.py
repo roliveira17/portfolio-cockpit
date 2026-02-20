@@ -2,6 +2,7 @@
 
 from datetime import date
 
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
@@ -16,6 +17,7 @@ from analytics.portfolio import (
 )
 from data.db import (
     get_latest_portfolio_snapshot,
+    get_portfolio_snapshots,
     get_positions,
     get_theses,
     get_upcoming_catalysts,
@@ -28,6 +30,9 @@ st.header("📊 Overview")
 
 # --- Carregar dados ---
 positions = get_positions(active_only=True)
+if not positions:
+    st.warning("Não foi possível carregar posições. Verifique a conexão com o Supabase.")
+    st.stop()
 quotes = fetch_all_quotes()
 df = build_portfolio_df(positions, quotes)
 
@@ -56,6 +61,28 @@ if theses:
     st.markdown(f"**Teses:** 🟢 {green} | 🟡 {yellow} | 🔴 {red}")
 
 st.markdown("---")
+
+# ============================================================
+# Patrimônio Histórico (Task 4.4)
+# ============================================================
+
+snapshots = get_portfolio_snapshots()
+if snapshots and len(snapshots) >= 2:
+    st.subheader("Evolução Patrimonial")
+    snap_df = pd.DataFrame(snapshots)
+    snap_df["date"] = pd.to_datetime(snap_df["date"])
+    fig_hist = px.line(
+        snap_df, x="date", y="total_value_brl",
+        labels={"date": "", "total_value_brl": "Patrimônio (R$)"},
+    )
+    fig_hist.update_layout(
+        height=250,
+        margin=dict(t=20, b=30, l=10, r=10),
+        yaxis_title="",
+    )
+    fig_hist.update_traces(line_color="#1f77b4")
+    st.plotly_chart(fig_hist, use_container_width=True)
+    st.markdown("---")
 
 # ============================================================
 # Alocação Setorial + Top Movers

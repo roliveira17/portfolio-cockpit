@@ -1,9 +1,11 @@
 """Página Positions — Visão detalhada de cada posição."""
 
+from datetime import date
+
 import streamlit as st
 
 from analytics.portfolio import build_portfolio_df
-from data.db import get_positions
+from data.db import get_positions, insert_row
 from data.market_data import fetch_all_quotes
 from utils.formatting import fmt_brl, fmt_pct, fmt_usd
 
@@ -11,6 +13,9 @@ st.header("💼 Positions")
 
 # --- Carregar dados ---
 positions = get_positions(active_only=True)
+if not positions:
+    st.warning("Não foi possível carregar posições. Verifique a conexão com o Supabase.")
+    st.stop()
 quotes = fetch_all_quotes()
 df = build_portfolio_df(positions, quotes)
 
@@ -121,6 +126,49 @@ if tickers:
         gap = row["weight_gap"]
         gap_label = "overweight" if gap > 0 else "underweight" if gap < 0 else "on target"
         st.markdown(f"Gap: {gap:+.1f}% ({gap_label})")
+
+# ============================================================
+# Registro de Transações (Task 4.3)
+# ============================================================
+
+st.markdown("---")
+st.subheader("Registrar Transação")
+
+with st.expander("➕ Nova Transação"):
+    with st.form("new_transaction"):
+        tx_tickers = df[df["sector"] != "caixa"]["ticker"].tolist()
+        tc1, tc2 = st.columns(2)
+        with tc1:
+            tx_ticker = st.selectbox("Ticker", tx_tickers, key="tx_ticker")
+            tx_type = st.selectbox("Tipo", ["BUY", "SELL", "DIVIDEND"])
+            tx_date = st.date_input("Data", value=date.today())
+        with tc2:
+            tx_qty = st.number_input("Quantidade", min_value=0.0, step=1.0)
+            tx_price = st.number_input("Preço", min_value=0.0, step=0.01)
+            tx_notes = st.text_input("Observações")
+
+        if st.form_submit_button("Registrar"):
+            if tx_qty > 0 and (tx_price > 0 or tx_type == "DIVIDEND"):
+                pos = next((p for p in positions if p["ticker"] == tx_ticker), None)
+                total_value = tx_qty * tx_price
+                tx_data = {
+                    "position_id": pos["id"] if pos else None,
+                    "ticker": tx_ticker,
+                    "type": tx_type,
+                    "quantity": tx_qty,
+                    "price": tx_price,
+                    "total_value": total_value,
+                    "currency": pos["currency"] if pos else "BRL",
+                    "date": str(tx_date),
+                    "notes": tx_notes,
+                }
+                try:
+                    insert_row("transactions", tx_data)
+                    st.success(f"Transação {tx_type} de {tx_ticker} registrada!")
+                except Exception:
+                    st.error("Erro ao registrar transação.")
+            else:
+                st.warning("Quantidade e preço devem ser positivos.")
 
 # ============================================================
 # Export CSV

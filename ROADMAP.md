@@ -1,6 +1,6 @@
 # ROADMAP — Portfolio Cockpit
 
-> Última atualização: 2026-02-19 (sessão 3)
+> Última atualização: 2026-02-19 (sessão 4)
 > Spec completa: docs/specs/PRD.md
 
 ---
@@ -65,28 +65,28 @@
 
 ## Sprint 3 — Simulator & Advanced Risk
 
-- [ ] 3.1 Módulo `analytics/simulator.py`
-- [ ] 3.2 Módulo `analytics/risk.py` (VaR, stress tests, sensitivity)
-- [ ] 3.3 Página Simulator — modo Rebalanceamento
-- [ ] 3.4 Página Simulator — modo Stress Test
-- [ ] 3.5 Página Simulator — modo New Trade
-- [ ] 3.6 Cenários pré-definidos (estagflação, risk-off, etc.)
-- [ ] 3.7 Módulo `analytics/performance.py` (attribution, Sharpe, Sortino)
-- [ ] 3.8 Portfolio snapshots (job periódico)
-- [ ] 3.9 Drawdown chart
+- [x] ✅ 2026/02/19 3.1 Módulo `analytics/simulator.py` (rebalance, new trade, HHI)
+- [x] ✅ 2026/02/19 3.2 Módulo `analytics/risk.py` (VaR histórico, stress tests, 4 cenários)
+- [x] ✅ 2026/02/19 3.3 Página Simulator — modo Rebalanceamento (sliders de peso)
+- [x] ✅ 2026/02/19 3.4 Página Simulator — modo Stress Test (4 sliders + cenários)
+- [x] ✅ 2026/02/19 3.5 Página Simulator — modo New Trade (impacto peso/caixa/HHI)
+- [x] ✅ 2026/02/19 3.6 Cenários pré-definidos (Estagflação, Risk-off, Selic Hawkish, Bull China)
+- [x] ✅ 2026/02/19 3.7 Módulo `analytics/performance.py` (Sharpe, Sortino, drawdown, beta, volatilidade)
+- [x] ✅ 2026/02/19 3.8 Portfolio snapshots (auto-save diário no Overview)
+- [x] ✅ 2026/02/19 3.9 Drawdown chart + upgrade Risk & Macro com métricas reais
 
 ---
 
 ## Sprint 4 — Polish & Extras
 
-- [ ] 4.1 Mobile responsiveness
-- [ ] 4.2 Export PDF/CSV
-- [ ] 4.3 Registro de transações (formulário)
-- [ ] 4.4 Histórico de evolução patrimonial
-- [ ] 4.5 Tema dark/light
-- [ ] 4.6 Celulose BHKP input manual
-- [ ] 4.7 Error handling robusto
-- [ ] 4.8 README e documentação final
+- [x] ✅ 2026/02/19 4.1 Mobile responsiveness (expanders para seções densas)
+- [x] ✅ 2026/02/19 4.2 Export CSV (Positions + Simulator stress test)
+- [x] ✅ 2026/02/19 4.3 Registro de transações (formulário BUY/SELL/DIVIDEND)
+- [x] ✅ 2026/02/19 4.4 Histórico de evolução patrimonial (line chart de snapshots)
+- [ ] 4.5 Tema dark/light — DEPRIORITIZADO (Streamlit não suporta toggle runtime)
+- [x] ✅ 2026/02/19 4.6 Celulose BHKP input manual (number_input no Risk & Macro)
+- [x] ✅ 2026/02/19 4.7 Error handling robusto (try/except em DB, st.warning graciosos)
+- [x] ✅ 2026/02/19 4.8 README e documentação final
 
 ---
 
