@@ -23,3 +23,28 @@
 
 **Cache agressivo com `st.cache_data(ttl=...)`:**
 - TTLs definidos em `constants.py` (CACHE_TTL_QUOTES=15min, CACHE_TTL_MACRO=1h) simplificam manutenção.
+
+---
+
+## 2026-02-19 — Sessão 3: Deploy + Sprint 2 completa
+
+**Streamlit Cloud deploy:**
+- Streamlit Cloud **não suporta** `pyproject.toml` do uv. Precisa de `requirements.txt` com dependências diretas.
+- Repos privados precisam autorização explícita do Streamlit GitHub App. Alternativa simples: tornar repo público.
+- Secrets no dashboard do Streamlit Cloud: mesma estrutura do `secrets.toml` local.
+
+**Seed de Knowledge Base com regex parsing:**
+- Extrair título (H1), resumo (seção "RESUMO" ou "SUMÁRIO"), analista e data de .md via regex é robusto o suficiente.
+- SUZB3 é caso especial — deep dive está em `reports/tese_suzb3_atualizada.md`, não em `deepdives/`. Tratar no seed explicitamente.
+- Pattern de delete-before-insert para idempotência do seed funciona bem.
+
+**Streamlit forms para CRUD:**
+- `st.form()` + `st.form_submit_button()` previne re-runs a cada interação com widgets. Essencial para páginas com muitos inputs como Thesis Board.
+- Kill switches como `text_area` (um por linha) → `list[str]` na serialização é simples e funcional.
+
+**Arquitetura de constantes com dicts ricos:**
+- `THESIS_STATUS = {"GREEN": {"emoji": "🟢", "label": "Ativa"}}` é melhor que strings simples — permite formatar em selectbox e cards sem lógica extra.
+
+**Versionamento de deep dives:**
+- `get_next_deep_dive_version(ticker)` com `max(version) + 1` é simples e confiável.
+- UNIQUE constraint `(ticker, version)` no Supabase garante integridade.

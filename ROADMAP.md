@@ -1,6 +1,6 @@
 # ROADMAP — Portfolio Cockpit
 
-> Última atualização: 2026-02-18 (sessão 2)
+> Última atualização: 2026-02-19 (sessão 3)
 > Spec completa: docs/specs/PRD.md
 
 ---
@@ -34,32 +34,32 @@
 - [x] ✅ 2026/02/18 1.16 Página Risk & Macro — aba Risk (correlation heatmap, HHI, diversificação)
 
 ### Deploy
-- [ ] 1.17 Deploy Streamlit Cloud (testar acesso remoto + auth)
+- [x] ✅ 2026/02/19 1.17 Deploy Streamlit Cloud (testar acesso remoto + auth)
 
 ---
 
 ## Sprint 2 — Thesis, Catalysts & Knowledge Base
 
 ### Thesis Board
-- [ ] 2.1 Página Thesis Board (kanban 🟢🟡🔴, cards, formulário edição)
-- [ ] 2.2 CRUD Teses (criar/editar/excluir via Streamlit → Supabase)
-- [ ] 2.3 CRUD Catalisadores (adicionar/editar/remover com data e impacto)
-- [ ] 2.4 CRUD Kill Switches
-- [ ] 2.5 Catalyst Timeline (Plotly timeline próximos 90 dias)
-- [ ] 2.6 Cálculos automáticos (target price 20/60/20, margem de segurança)
-- [ ] 2.7 Alertas de revisão vencida
-- [ ] 2.8 Integração Overview (catalisadores + semáforo de teses)
+- [x] ✅ 2026/02/19 2.1 Página Thesis Board (kanban 🟢🟡🔴, cards, formulário edição)
+- [x] ✅ 2026/02/19 2.2 CRUD Teses (criar/editar/excluir via Streamlit → Supabase)
+- [x] ✅ 2026/02/19 2.3 CRUD Catalisadores (adicionar/editar/remover com data e impacto)
+- [x] ✅ 2026/02/19 2.4 CRUD Kill Switches
+- [x] ✅ 2026/02/19 2.5 Catalyst Timeline (Plotly timeline próximos 90 dias)
+- [x] ✅ 2026/02/19 2.6 Cálculos automáticos (target price 20/60/20, margem de segurança)
+- [x] ✅ 2026/02/19 2.7 Alertas de revisão vencida
+- [x] ✅ 2026/02/19 2.8 Integração Overview (catalisadores + semáforo de teses)
 
 ### Knowledge Base
-- [ ] 2.9 Seed deep dives (ler 18 .md de knowledge_base/deepdives/ → tabela deep_dives)
-- [ ] 2.10 Seed relatórios (ler 4 .md de knowledge_base/reports/ → tabela analysis_reports)
-- [ ] 2.11 Página KB — aba Por Ticker (dropdown, versões, render Markdown, download)
-- [ ] 2.12 Página KB — aba Relatórios (lista filtrada, visualização, download)
-- [ ] 2.13 Página KB — aba Timeline (Plotly timeline de todos os documentos)
-- [ ] 2.14 KB — Upload de novo deep dive (formulário, auto-version)
-- [ ] 2.15 KB — Comparação entre versões (side-by-side de métricas)
-- [ ] 2.16 KB — Gráfico de evolução por ticker (ROIC, target, cotação ao longo das versões)
-- [ ] 2.17 KB — Busca full-text
+- [x] ✅ 2026/02/19 2.9 Seed deep dives (ler 18 .md de knowledge_base/deepdives/ → tabela deep_dives)
+- [x] ✅ 2026/02/19 2.10 Seed relatórios (ler 4 .md de knowledge_base/reports/ → tabela analysis_reports)
+- [x] ✅ 2026/02/19 2.11 Página KB — aba Por Ticker (dropdown, versões, render Markdown, download)
+- [x] ✅ 2026/02/19 2.12 Página KB — aba Relatórios (lista filtrada, visualização, download)
+- [x] ✅ 2026/02/19 2.13 Página KB — aba Timeline (Plotly timeline de todos os documentos)
+- [x] ✅ 2026/02/19 2.14 KB — Upload de novo deep dive (formulário, auto-version)
+- [x] ✅ 2026/02/19 2.15 KB — Comparação entre versões (side-by-side de métricas)
+- [x] ✅ 2026/02/19 2.16 KB — Gráfico de evolução por ticker (ROIC, target, cotação ao longo das versões)
+- [x] ✅ 2026/02/19 2.17 KB — Busca full-text
 
 ---
 
