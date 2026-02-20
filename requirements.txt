@@ -1,0 +1,11 @@
+streamlit>=1.30.0
+supabase>=2.0.0
+plotly>=5.18.0
+pandas>=2.1.0
+numpy>=1.24.0
+yfinance>=0.2.31
+requests>=2.31.0
+quantstats>=0.0.62
+PyPortfolioOpt>=1.5.5
+python-bcb>=0.2.0
+streamlit-option-menu>=0.3.6
