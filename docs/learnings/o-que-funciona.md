@@ -48,3 +48,26 @@
 **Versionamento de deep dives:**
 - `get_next_deep_dive_version(ticker)` com `max(version) + 1` é simples e confiável.
 - UNIQUE constraint `(ticker, version)` no Supabase garante integridade.
+
+---
+
+## 2026-02-19 — Sessão 4: Sprints 3 e 4 completas
+
+**Pandas/NumPy puro para métricas financeiras:**
+- quantstats tem conflitos com Streamlit (matplotlib backend). Implementar Sharpe, Sortino, VaR, drawdown com pandas/numpy é simples (~120 linhas) e sem conflitos.
+
+**Stress tests com FACTOR_SENSITIVITIES:**
+- Dict de sensibilidades por fator/ticker em `constants.py` é suficiente para stress tests básicos.
+- Cada fator tem uma escala (selic = por pp, câmbio/brent/ibov = por 10%). Dividir o shock pela escala antes de multiplicar pela sensibilidade.
+
+**Snapshot por page load (anti-cron):**
+- Salvar portfolio snapshot no primeiro acesso do dia (verificar data do último) é mais simples que scheduler.
+- Pattern: `if not latest or latest.date != today: save()` com try/except silencioso.
+
+**Error handling em camada de dados:**
+- Wrapping todas as queries do db.py com try/except + retorno [] ou None evita crashes em cascata.
+- Pages fazem `if not positions: st.warning(); st.stop()` — modo degradado com mensagem clara.
+
+**Execução sequencial vs subagents para código interdependente:**
+- Módulos com imports cruzados (risk←performance, simulator←risk) devem ser escritos sequencialmente.
+- Subagents são úteis apenas para exploração/planejamento, não para geração de código acoplado.
