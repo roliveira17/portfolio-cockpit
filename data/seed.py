@@ -1,5 +1,6 @@
 """Popular banco de dados com dados iniciais do portfólio (PRD seção 4)."""
 
+import re
 import tomllib
 from pathlib import Path
 
@@ -310,6 +311,155 @@ def seed_transactions(client, ticker_to_id: dict[str, str]) -> None:
     print(f"  {len(res.data)} transações inseridas")
 
 
+TICKER_SECTOR = {
+    "INBR32": "financeiro", "ENGI4": "utilities", "EQTL3": "utilities",
+    "ALOS3": "consumo_varejo", "SUZB3": "energia_materiais", "KLBN4": "energia_materiais",
+    "BRAV3": "energia_materiais", "PLPL3": "consumo_varejo", "RAPT4": "consumo_varejo",
+    "GMAT3": "consumo_varejo", "MGLU3": "consumo_varejo", "UGPA3": "energia_materiais",
+    "TSM": "tech_semis", "NVDA": "tech_semis", "ASML": "tech_semis",
+    "MELI": "tech_semis", "GOOGL": "tech_semis", "SNPS": "tech_semis", "MU": "tech_semis",
+}
+
+# Metadados dos relatórios — PRD seção 4.6
+REPORT_METADATA = {
+    "oil_analysis.md": {
+        "title": "Oil Commodity Analysis: A Market Drowning in Barrels but Priced for War",
+        "report_type": "SECTOR",
+        "tags": ["oil", "brent", "energy", "brav3"],
+        "tickers_mentioned": ["BRAV3", "UGPA3"],
+    },
+    "relatorio_macro_rotacao.md": {
+        "title": "Relatório Macro & Rotação",
+        "report_type": "MACRO",
+        "tags": ["selic", "rotacao", "macro", "ciclo"],
+        "tickers_mentioned": ["ENGI4", "INBR32", "PLPL3", "EQTL3", "ALOS3"],
+    },
+    "relatorio_safra_2025_26.md": {
+        "title": "Relatório Safra 2025/26",
+        "report_type": "THEMATIC",
+        "tags": ["agro", "safra", "commodities"],
+        "tickers_mentioned": [],
+    },
+}
+
+KB_DIR = Path(__file__).parent.parent / "knowledge_base"
+
+
+def _extract_title(content: str) -> str:
+    """Extrai o título H1 do markdown."""
+    match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
+    return match.group(1).strip() if match else "Sem título"
+
+
+def _extract_summary(content: str) -> str:
+    """Extrai resumo da tese ou sumário executivo."""
+    patterns = [
+        r"(?:RESUMO DA TESE|SUMÁRIO EXECUTIVO|SUM[ÃA]RIO EXECUTIVO).*?\n\n(.+?)(?:\n---|\n##|\n\n\n)",
+        r"(?:Elevator Pitch\))\s*\n\n(.+?)(?:\n---|\n##)",
+    ]
+    for pat in patterns:
+        match = re.search(pat, content, re.DOTALL | re.IGNORECASE)
+        if match:
+            text = match.group(1).strip()
+            # Limitar a ~500 chars
+            if len(text) > 500:
+                text = text[:497] + "..."
+            return text
+    return ""
+
+
+def _extract_analyst(content: str) -> str:
+    """Extrai analista do cabeçalho."""
+    match = re.search(r"\*\*Analista.*?:\*\*\s*(.+?)(?:\s{2,}|\n|\|)", content)
+    return match.group(1).strip() if match else ""
+
+
+def _extract_date(content: str) -> str:
+    """Extrai data do cabeçalho (DD/MM/YYYY → YYYY-MM-DD)."""
+    match = re.search(r"\*\*Data:\*\*\s*(\d{2}/\d{2}/\d{4})", content)
+    if match:
+        d, m, y = match.group(1).split("/")
+        return f"{y}-{m}-{d}"
+    return "2026-02-18"
+
+
+def seed_deep_dives(client) -> None:
+    """Lê deep dives de knowledge_base/ e popula tabela deep_dives."""
+    deepdives_dir = KB_DIR / "deepdives"
+    suzb3_file = KB_DIR / "reports" / "tese_suzb3_atualizada.md"
+
+    # Limpar deep dives seeded anteriormente (version=1)
+    existing = client.table("deep_dives").select("id,version").eq("version", 1).execute().data
+    for row in existing:
+        client.table("deep_dives").delete().eq("id", row["id"]).execute()
+
+    records = []
+    # 18 arquivos de deepdives/
+    for md_file in sorted(deepdives_dir.glob("*.md")):
+        ticker = md_file.stem
+        content = md_file.read_text(encoding="utf-8")
+        sector = TICKER_SECTOR.get(ticker, "")
+        records.append({
+            "ticker": ticker,
+            "version": 1,
+            "title": _extract_title(content),
+            "analyst": _extract_analyst(content),
+            "content_md": content,
+            "summary": _extract_summary(content),
+            "key_metrics": {},
+            "tags": ["initial_deep_dive", sector],
+            "date": _extract_date(content),
+        })
+
+    # SUZB3 de reports/ (PRD 4.6 nota)
+    if suzb3_file.exists():
+        content = suzb3_file.read_text(encoding="utf-8")
+        records.append({
+            "ticker": "SUZB3",
+            "version": 1,
+            "title": _extract_title(content),
+            "analyst": _extract_analyst(content),
+            "content_md": content,
+            "summary": _extract_summary(content),
+            "key_metrics": {},
+            "tags": ["initial_deep_dive", "energia_materiais"],
+            "date": _extract_date(content),
+        })
+
+    res = client.table("deep_dives").insert(records).execute()
+    print(f"  {len(res.data)} deep dives inseridos")
+
+
+def seed_reports(client) -> None:
+    """Lê relatórios de knowledge_base/reports/ e popula tabela analysis_reports."""
+    reports_dir = KB_DIR / "reports"
+
+    # Limpar relatórios seeded anteriormente
+    for meta in REPORT_METADATA.values():
+        client.table("analysis_reports").delete().eq("title", meta["title"]).execute()
+
+    records = []
+    for filename, meta in REPORT_METADATA.items():
+        filepath = reports_dir / filename
+        if not filepath.exists():
+            print(f"  AVISO: {filename} não encontrado, pulando")
+            continue
+        content = filepath.read_text(encoding="utf-8")
+        records.append({
+            "title": meta["title"],
+            "report_type": meta["report_type"],
+            "content_md": content,
+            "summary": _extract_summary(content),
+            "tickers_mentioned": meta["tickers_mentioned"],
+            "tags": meta["tags"],
+            "date": _extract_date(content),
+        })
+
+    if records:
+        res = client.table("analysis_reports").insert(records).execute()
+        print(f"  {len(res.data)} relatórios inseridos")
+
+
 def main():
     print("Seed — Portfolio Cockpit")
     print("=" * 40)
@@ -321,6 +471,12 @@ def main():
 
     print("\n2. Transactions...")
     seed_transactions(client, ticker_to_id)
+
+    print("\n3. Deep Dives...")
+    seed_deep_dives(client)
+
+    print("\n4. Analysis Reports...")
+    seed_reports(client)
 
     print("\nSeed concluído!")
 

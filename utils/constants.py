@@ -135,3 +135,40 @@ FACTOR_SENSITIVITIES = {
 CACHE_TTL_QUOTES = 15 * 60  # 15 minutos
 CACHE_TTL_MACRO = 60 * 60  # 1 hora
 CACHE_TTL_DB = 5 * 60  # 5 minutos
+
+# ============================================================
+# Labels para Thesis Board — PRD seção 6.4
+# ============================================================
+
+THESIS_STATUS = {
+    "GREEN": {"emoji": "🟢", "label": "Ativa"},
+    "YELLOW": {"emoji": "🟡", "label": "Revisão"},
+    "RED": {"emoji": "🔴", "label": "Crítica"},
+}
+
+CONVICTION_LABELS = {"HIGH": "Alta", "MEDIUM": "Média", "LOW": "Baixa"}
+
+MOAT_LABELS = {"STRONG": "Forte", "MODERATE": "Moderado", "WEAK": "Fraco", "NONE": "Sem Moat"}
+
+MOAT_TREND_LABELS = {"WIDENING": "Ampliando", "STABLE": "Estável", "NARROWING": "Estreitando"}
+
+CATALYST_CATEGORIES = {
+    "EARNINGS": "Resultados",
+    "REGULATORY": "Regulatório",
+    "MACRO": "Macro",
+    "CORPORATE": "Corporativo",
+    "OTHER": "Outro",
+}
+
+IMPACT_LABELS = {"HIGH": "Alto", "MEDIUM": "Médio", "LOW": "Baixo"}
+
+# ============================================================
+# Labels para Knowledge Base — PRD seção 6.6
+# ============================================================
+
+REPORT_TYPES = {
+    "MACRO": "Macro",
+    "SECTOR": "Setorial",
+    "THEMATIC": "Temático",
+    "PORTFOLIO_REVIEW": "Revisão de Portfólio",
+}

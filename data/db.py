@@ -120,6 +120,21 @@ def get_upcoming_catalysts(limit: int = 10) -> list[dict]:
     )
 
 
+def get_catalysts_by_ticker(ticker: str) -> list[dict]:
+    """Retorna catalisadores de um ticker, ordenados por data."""
+    return (
+        get_client().table("catalysts").select("*").eq("ticker", ticker).order("expected_date").execute().data
+    )
+
+
+def get_all_catalysts(include_completed: bool = False) -> list[dict]:
+    """Retorna todos os catalisadores, opcionalmente incluindo completados."""
+    query = get_client().table("catalysts").select("*")
+    if not include_completed:
+        query = query.eq("completed", False)
+    return query.order("expected_date").execute().data
+
+
 # ============================================================
 # Macro Snapshots
 # ============================================================
@@ -147,6 +162,19 @@ def get_latest_deep_dive(ticker: str) -> dict | None:
         get_client().table("deep_dives").select("*").eq("ticker", ticker).order("version", desc=True).limit(1).execute()
     )
     return res.data[0] if res.data else None
+
+
+def get_all_deep_dives() -> list[dict]:
+    """Retorna todos os deep dives, ordenados por data (mais recente primeiro)."""
+    return get_client().table("deep_dives").select("*").order("date", desc=True).execute().data
+
+
+def get_next_deep_dive_version(ticker: str) -> int:
+    """Retorna a próxima versão disponível para um ticker."""
+    dives = get_deep_dives_by_ticker(ticker)
+    if not dives:
+        return 1
+    return max(d["version"] for d in dives) + 1
 
 
 # ============================================================
