@@ -1,5 +1,7 @@
 """Página Overview — Visão de helicóptero do portfólio."""
 
+from datetime import date
+
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
@@ -12,7 +14,13 @@ from analytics.portfolio import (
     calc_total_patrimony,
     calc_total_pnl,
 )
-from data.db import get_positions, get_theses, get_upcoming_catalysts
+from data.db import (
+    get_latest_portfolio_snapshot,
+    get_positions,
+    get_theses,
+    get_upcoming_catalysts,
+    save_portfolio_snapshot,
+)
 from data.market_data import fetch_all_quotes
 from utils.formatting import fmt_brl, fmt_date, fmt_pct
 
@@ -136,3 +144,28 @@ with col_right2:
             st.markdown(f"{impact_icon} **{date_str}** — {cat['ticker']}: {cat['description']}")
     else:
         st.info("Nenhum catalisador cadastrado.")
+
+# ============================================================
+# Auto-save snapshot diário (Task 3.8)
+# ============================================================
+
+_latest_snap = get_latest_portfolio_snapshot()
+_today = str(date.today())
+if not _latest_snap or _latest_snap.get("date") != _today:
+    try:
+        from utils.currency import brl_to_usd
+
+        _positions_data = [
+            {"ticker": r["ticker"], "value_brl": r["current_value_brl"]}
+            for _, r in df.iterrows()
+            if r["current_value_brl"]
+        ]
+        save_portfolio_snapshot({
+            "date": _today,
+            "total_value_brl": round(total, 2),
+            "total_value_usd": round(brl_to_usd(total) or 0, 2),
+            "cash_brl": round(cash_value, 2),
+            "positions_data": _positions_data,
+        })
+    except Exception:
+        pass  # falha silenciosa — snapshot é best-effort

@@ -1,14 +1,25 @@
 """Página Risk & Macro — Indicadores macro e métricas de risco."""
 
 import numpy as np
+import pandas as pd
 import plotly.express as px
 import streamlit as st
 import yfinance as yf
 
+from analytics.performance import (
+    calc_beta_vs_benchmark,
+    calc_drawdown_series,
+    calc_max_drawdown,
+    calc_portfolio_returns,
+    calc_sharpe_ratio,
+    calc_sortino_ratio,
+    calc_volatility,
+)
 from analytics.portfolio import build_portfolio_df
+from analytics.risk import calc_stress_test_portfolio, calc_var_historical
 from data.db import get_positions
 from data.macro_data import fetch_macro_br, fetch_macro_global
-from data.market_data import fetch_all_quotes
+from data.market_data import fetch_all_quotes, fetch_batch_price_history
 from utils.constants import CACHE_TTL_QUOTES, TICKERS_BR, TICKERS_US
 from utils.formatting import fmt_number, fmt_pct
 
@@ -69,10 +80,7 @@ with tab_macro:
     # KPI Cards — linha 1
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Selic", fmt_pct(macro_br.get("selic"), decimals=2))
-    c2.metric(
-        "USD/BRL",
-        fmt_number(macro_br.get("usd_brl"), decimals=4),
-    )
+    c2.metric("USD/BRL", fmt_number(macro_br.get("usd_brl"), decimals=4))
 
     ibov = macro_gl.get("ibov")
     c3.metric("IBOV", fmt_number(_safe_value(ibov), decimals=0), fmt_pct(_safe_change(ibov), sign=True))
@@ -99,17 +107,27 @@ with tab_macro:
 
     st.markdown("---")
 
+    # --- Stress Matrix dinâmico ---
     st.subheader("Matriz Macro → Impacto Estimado no Portfólio")
-    st.markdown(
-        """
-| Cenário | Impacto Estimado |
-|---------|-----------------|
-| Selic +1pp | Portfólio ~-3% (posições sensíveis a juros) |
-| BRL depreciar 10% | Portfólio ~-1% (exportadoras ganham, US perde convertido) |
-| Brent -20% | BRAV3 ~-24% (alta sensibilidade) |
-| IBOV -10% | Portfólio ~-8% (beta médio ~0.85) |
-"""
-    )
+    _positions = get_positions(active_only=True)
+    _quotes = fetch_all_quotes()
+    _df_stress = build_portfolio_df(_positions, _quotes)
+
+    default_shocks = [
+        ("Selic +1pp", {"selic_1pp": 1.0}),
+        ("USD/BRL +10%", {"usdbrl_10pct": 10.0}),
+        ("Brent -20%", {"brent_10pct": -20.0}),
+        ("IBOV -10%", {"ibov_10pct": -10.0}),
+    ]
+    stress_rows = []
+    for label, shocks in default_shocks:
+        result = calc_stress_test_portfolio(_df_stress, shocks)
+        stress_rows.append({
+            "Cenário": label,
+            "Impacto (%)": f"{result['total_impact_pct']:+.1f}%",
+            "Impacto (R$)": f"R$ {result['total_impact_brl']:+,.0f}",
+        })
+    st.dataframe(pd.DataFrame(stress_rows), use_container_width=True, hide_index=True)
 
 # ============================================================
 # Tab 2: Risk Dashboard
@@ -165,8 +183,57 @@ with tab_risk:
 
     st.markdown("---")
 
+    # --- Risk Metrics ---
     st.subheader("Risk Metrics")
-    st.info(
-        "Métricas avançadas (Sharpe, Sortino, Max Drawdown, VaR) "
-        "serão calculadas na Sprint 3 com dados históricos do portfólio."
+
+    # Buscar histórico e calcular retornos
+    price_hist = fetch_batch_price_history(
+        tickers_br=TICKERS_BR, tickers_us=TICKERS_US, period="6mo",
     )
+    weight_map = {row["ticker"]: row["weight"] / 100 for _, row in df.iterrows() if row["weight"] > 0}
+    port_returns = calc_portfolio_returns(price_hist, weight_map) if price_hist is not None else None
+
+    if port_returns is not None and len(port_returns) >= 20:
+        selic = macro_br.get("selic")
+        rf = selic / 100 if selic else 0.1325
+
+        # Benchmark returns (IBOV)
+        ibov_hist = fetch_batch_price_history(tickers_us=["^BVSP"], period="6mo")
+        ibov_returns = None
+        if ibov_hist is not None and "^BVSP" in ibov_hist.columns:
+            ibov_returns = ibov_hist["^BVSP"].pct_change().dropna()
+
+        sharpe = calc_sharpe_ratio(port_returns, rf)
+        sortino = calc_sortino_ratio(port_returns, rf)
+        max_dd = calc_max_drawdown(port_returns)
+        vol_30 = calc_volatility(port_returns, window=30)
+        beta = calc_beta_vs_benchmark(port_returns, ibov_returns)
+        var_95 = calc_var_historical(port_returns, confidence=0.95)
+
+        rm1, rm2, rm3 = st.columns(3)
+        rm1.metric("Sharpe (vs CDI)", f"{sharpe:.2f}" if sharpe is not None else "—")
+        rm2.metric("Sortino", f"{sortino:.2f}" if sortino is not None else "—")
+        rm3.metric("Max Drawdown", fmt_pct(max_dd * 100, sign=True) if max_dd is not None else "—")
+
+        rm4, rm5, rm6 = st.columns(3)
+        rm4.metric("Vol. 30d (anual.)", fmt_pct(vol_30 * 100) if vol_30 is not None else "—")
+        rm5.metric("Beta vs IBOV", f"{beta:.2f}" if beta is not None else "—")
+        rm6.metric("VaR 95% (1d)", fmt_pct(var_95 * 100, sign=True) if var_95 is not None else "—")
+
+        # --- Drawdown Chart ---
+        st.markdown("---")
+        st.subheader("Drawdown")
+        dd_series = calc_drawdown_series(port_returns)
+        if dd_series is not None and not dd_series.empty:
+            dd_df = pd.DataFrame({"Data": dd_series.index, "Drawdown (%)": dd_series.values * 100})
+            fig_dd = px.area(dd_df, x="Data", y="Drawdown (%)")
+            fig_dd.update_layout(
+                height=250,
+                margin=dict(t=20, b=30),
+                yaxis_title="",
+                xaxis_title="",
+            )
+            fig_dd.update_traces(fillcolor="rgba(255, 0, 0, 0.3)", line_color="red")
+            st.plotly_chart(fig_dd, use_container_width=True)
+    else:
+        st.info("Dados históricos insuficientes para calcular métricas de risco.")

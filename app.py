@@ -45,6 +45,7 @@ def main():
         st.Page("pages/3_risk_macro.py", title="Risk & Macro", icon="⚠️"),
         st.Page("pages/4_thesis_board.py", title="Thesis Board", icon="📋"),
         st.Page("pages/5_knowledge_base.py", title="Knowledge Base", icon="📚"),
+        st.Page("pages/6_simulator.py", title="Simulator", icon="🔬"),
     ]
     nav = st.navigation(pages)
     nav.run()
