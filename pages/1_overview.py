@@ -12,7 +12,7 @@ from analytics.portfolio import (
     calc_total_patrimony,
     calc_total_pnl,
 )
-from data.db import get_positions, get_upcoming_catalysts
+from data.db import get_positions, get_theses, get_upcoming_catalysts
 from data.market_data import fetch_all_quotes
 from utils.formatting import fmt_brl, fmt_date, fmt_pct
 
@@ -38,6 +38,14 @@ col1.metric("Patrimônio", fmt_brl(total, compact=True))
 col2.metric("P&L Total", fmt_brl(pnl_abs, compact=True), fmt_pct(pnl_pct, sign=True))
 col3.metric("Caixa", fmt_brl(cash_value, compact=True), fmt_pct(cash_pct))
 col4.metric("Posições Ativas", f"{len(df[df['sector'] != 'caixa'])}")
+
+# --- Semáforo de teses ---
+theses = get_theses()
+if theses:
+    green = sum(1 for t in theses if t.get("status") == "GREEN")
+    yellow = sum(1 for t in theses if t.get("status") == "YELLOW")
+    red = sum(1 for t in theses if t.get("status") == "RED")
+    st.markdown(f"**Teses:** 🟢 {green} | 🟡 {yellow} | 🔴 {red}")
 
 st.markdown("---")
 
