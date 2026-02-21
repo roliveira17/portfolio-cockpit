@@ -1,6 +1,6 @@
 # ROADMAP — Portfolio Cockpit
 
-> Última atualização: 2026-02-21 (sessão 7 — QA)
+> Última atualização: 2026-02-21 (sessão 8 — Bug Fixes Overview + Positions)
 > Spec completa: docs/specs/PRD.md
 
 ---
@@ -171,6 +171,35 @@
 ### Verificação
 - [x] ✅ 2026/02/21 7.12 Atualizar `tests/conftest.py` com fixtures compartilhadas (brapi, treasury XML, supabase, positions, quotes)
 - [x] ✅ 2026/02/21 7.13 311 testes passando em ~1.6s, ruff lint limpo
+
+---
+
+## Sprint 8 — Bug Fixes Overview + Positions (PR #8)
+
+> 12 correções de dados financeiros e UX nas páginas Overview e Positions.
+
+### Correções críticas
+- [x] ✅ 2026/02/21 8.1 Caixa/Fundos incluídos no patrimônio total (~R$370k → ~R$514k)
+- [x] ✅ 2026/02/21 8.2 Top movers usando variação semanal 5+5 (nova `fetch_weekly_changes`)
+- [x] ✅ 2026/02/21 8.3 Botão "Analisar" com model_key corrigido (Flash > Haiku > fallback)
+
+### Melhorias Overview
+- [x] ✅ 2026/02/21 8.4 Removido fator "Beta IBOV" duplicado da exposição por risco
+- [x] ✅ 2026/02/21 8.5 Badge de freshness exibe horário da última atualização
+
+### Melhorias Positions
+- [x] ✅ 2026/02/21 8.6 Coluna "Sem %" (variação semanal) na tabela
+- [x] ✅ 2026/02/21 8.7 Coluna "Alvo" (target price da tese) na tabela
+- [x] ✅ 2026/02/21 8.8 Removida coluna "Gap %" e reordenadas colunas
+- [x] ✅ 2026/02/21 8.9 Importar CSV ao lado do Exportar
+
+### Outros
+- [x] ✅ 2026/02/21 8.10 Seed de 15 catalisadores iniciais (earnings Q4, ANEEL, Google I/O)
+- [x] ✅ 2026/02/21 8.11 `calc_top_movers` flexível (change_col, n=5)
+- [x] ✅ 2026/02/21 8.12 `calc_total_pnl` protege contra NaN
+
+### Testes
+- [x] ✅ 2026/02/21 321 testes passando, lint limpo
 
 ---
 

@@ -72,3 +72,11 @@ Configurações → Privacidade e Segurança → Segurança do Windows → Contr
 **Problema:** Chamar `build_portfolio_df` com lista vazia de posições cria um DataFrame sem colunas, e o acesso subsequente a `df["current_value_brl"]` levanta `KeyError`.
 
 **Solução:** Documentar no teste com `pytest.raises(KeyError)`. Comportamento aceitável — a UI checa se positions é vazio antes de chamar a função.
+
+---
+
+## 2026-02-21 — Posições de caixa/fundos sem cotação zeram patrimônio
+
+**Problema:** Posições com `sector` "caixa" ou "fundos" não têm cotação de mercado (não existem na brapi/yfinance). `current_price` fica `None`, `current_value_brl` fica `None`, e ~R$143k de patrimônio (caixa + fundos) some do total.
+
+**Solução:** Em `build_portfolio_df`, adicionar caminho especial: se `current_price is None` e `sector in ("caixa", "fundos")`, usar `total_invested` como valor atual e `P&L = 0`. O `continue` pula o cálculo normal de P&L.
