@@ -118,6 +118,35 @@
 
 ---
 
+## Sprint 6 — Market Monitor & UX Enhancements
+
+> Inspiração: Bloomberg Terminal clone adaptado ao stack Streamlit.
+> Novas fontes: pyettj (curva BR), Treasury.gov XML (curva US), yfinance (índices/commodities).
+
+### Infraestrutura & Dados
+- [ ] 6.1 Adicionar dependências (`pyettj`, `beautifulsoup4`)
+- [ ] 6.2 Criar `data/yield_curve.py` (curva DI x Pré via pyettj/B3, Treasury yields via XML feed)
+- [ ] 6.3 Criar `data/global_markets.py` (índices globais + commodities via yfinance)
+- [ ] 6.4 Expandir `utils/constants.py` (GLOBAL_INDICES, COMMODITIES_TICKERS, REGION_LABELS)
+
+### Nova Página: Markets
+- [ ] 6.5 Criar `pages/7_markets.py` — aba Índices Globais (tabela por região, sparklines, KPIs)
+- [ ] 6.6 Página Markets — aba Commodities (tabela, KPIs, input BHKP migrado)
+- [ ] 6.7 Página Markets — aba Curva de Juros (BR DI x Pré + US Treasury side-by-side)
+
+### UX Enhancements
+- [ ] 6.8 Indicador de freshness dos dados (`utils/cache_info.py` + badge nas páginas)
+- [ ] 6.9 Sparklines na tabela Positions (LineChartColumn nativo do Streamlit)
+- [ ] 6.10 Filtros rápidos preset na Positions (Overweight, Underweight, Top P&L, Revisão Vencida)
+- [ ] 6.11 Botão "Analisar" por posição (análise IA rápida via LLM existente)
+
+### Integração & Testes
+- [ ] 6.12 Registrar página Markets no `app.py`
+- [ ] 6.13 Testes (`tests/test_markets.py` — parse XML, parse HTML, estrutura de constantes)
+- [ ] 6.14 Atualizar ROADMAP.md e verificação (lint, testes, deploy)
+
+---
+
 ## Pendente — Ações Manuais (pós-deploy)
 
 - [ ] Adicionar API key OpenRouter nos secrets do Streamlit Cloud (`[openrouter] api_key`)
