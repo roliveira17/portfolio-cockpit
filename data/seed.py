@@ -688,6 +688,46 @@ def seed_theses(client, ticker_to_id: dict[str, str]) -> None:
         print(f"  {len(res.data)} teses inseridas")
 
 
+def _cat(ticker: str, desc: str, date: str, impact: str, category: str) -> dict:
+    return {
+        "ticker": ticker,
+        "description": desc,
+        "expected_date": date,
+        "impact": impact,
+        "category": category,
+    }
+
+
+SEED_CATALYSTS = [
+    _cat("MELI", "Earnings Q4 2025", "2026-02-19", "HIGH", "EARNINGS"),
+    _cat("ENGI4", "Earnings Q4 2025", "2026-02-25", "HIGH", "EARNINGS"),
+    _cat("NVDA", "Earnings Q4 FY2026", "2026-02-26", "HIGH", "EARNINGS"),
+    _cat("INBR32", "Earnings Q4 2025", "2026-02-27", "HIGH", "EARNINGS"),
+    _cat("EQTL3", "Earnings Q4 2025", "2026-03-05", "HIGH", "EARNINGS"),
+    _cat("SUZB3", "Earnings Q4 2025", "2026-03-06", "HIGH", "EARNINGS"),
+    _cat("KLBN4", "Earnings Q4 2025", "2026-03-10", "HIGH", "EARNINGS"),
+    _cat("TSM", "Relatorio receita mensal", "2026-03-10", "MEDIUM", "CORPORATE"),
+    _cat("GMAT3", "Earnings Q4 2025", "2026-03-12", "HIGH", "EARNINGS"),
+    _cat("BRAV3", "Dados producao mensal", "2026-03-15", "MEDIUM", "CORPORATE"),
+    _cat("ALOS3", "Earnings Q4 2025", "2026-03-18", "HIGH", "EARNINGS"),
+    _cat("PLPL3", "Earnings Q4 2025", "2026-03-19", "HIGH", "EARNINGS"),
+    _cat("RAPT4", "Earnings Q4 2025", "2026-03-20", "HIGH", "EARNINGS"),
+    _cat("EQTL3", "Revisao tarifaria ANEEL", "2026-03-20", "HIGH", "REGULATORY"),
+    _cat("GOOGL", "Google I/O 2026", "2026-05-15", "MEDIUM", "CORPORATE"),
+]
+
+
+def seed_catalysts(client) -> None:
+    """Insere catalisadores iniciais na tabela catalysts."""
+    # Limpar catalisadores de seed anteriores
+    for cat in SEED_CATALYSTS:
+        client.table("catalysts").delete().eq("ticker", cat["ticker"]).eq("description", cat["description"]).execute()
+
+    records = [{**cat, "completed": False} for cat in SEED_CATALYSTS]
+    res = client.table("catalysts").insert(records).execute()
+    print(f"  {len(res.data)} catalisadores inseridos")
+
+
 def main():
     print("Seed — Portfolio Cockpit")
     print("=" * 40)
@@ -708,6 +748,9 @@ def main():
 
     print("\n5. Theses...")
     seed_theses(client, ticker_to_id)
+
+    print("\n6. Catalysts...")
+    seed_catalysts(client)
 
     print("\nSeed concluído!")
 
