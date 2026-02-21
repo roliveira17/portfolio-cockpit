@@ -1,6 +1,6 @@
 # ROADMAP — Portfolio Cockpit
 
-> Última atualização: 2026-02-21 (sessão 9 — CSV Importer, Catalysts, EWY, ibov fix)
+> Última atualização: 2026-02-21 (sessão final — todas as sprints 1-9 concluídas)
 > Spec completa: docs/specs/PRD.md
 
 ---

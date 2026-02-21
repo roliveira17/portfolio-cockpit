@@ -138,3 +138,25 @@
 
 **Testes 100% mockados = rápidos e confiáveis:**
 - 311 testes em ~1.6s sem nenhuma chamada real a APIs/DB. Bom para CI/CD. Zero flakiness.
+
+---
+
+## 2026-02-21 — Sessões 8-9: Bug Fixes Overview/Positions + CSV Importer
+
+**Importador CSV com detecção de formato BR/EN:**
+- Verificar se primeira linha contém `;` para detectar separador brasileiro. Fallback: `pd.read_csv(io.StringIO(content))`.
+- Decimal brasileiro: `str.replace(".", "").replace(",", ".")` converte `1.234,56` → `1234.56`.
+- Preview da importação antes de aplicar (tabela com ação ATUALIZAR/CRIAR) evita erros silenciosos.
+- Criar novas posições para tickers desconhecidos com inferência de mercado/moeda via regex (`\d$` → BR/BRL).
+
+**Diagnóstico top-down de bugs financeiros:**
+- Quando múltiplos KPIs estão errados (P&L NaN, Caixa R$0, patrimônio ~R$370k), traçar o fluxo de dados até a função central (`build_portfolio_df`) revela causa raiz única.
+- pandas `None` → `NaN` silenciosamente. `if value is None` NÃO captura `NaN` — usar `pd.isna(value)`.
+
+**Escala de sensibilidades em stress tests:**
+- Todos os fatores devem usar a MESMA escala (impacto proporcional por unidade). Betas de IBOV (1.2) devem ser divididos por 10 para ficarem na escala dos outros fatores (0.12 = 12% quando IBOV move 10%).
+- Fórmula: `impact = sensitivity × (shock / scale)`. Se escala de ibov é 10%, beta 1.2 deveria ser 0.12 (não 1.2).
+
+**Model selection para LLMs com fallback chain:**
+- Ordem de preferência: Flash/mini (baratos, rápidos) → Haiku → qualquer outro. Usar `next((k for k in MODELS if "Flash" in k or "mini" in k), fallback)`.
+- Validar model IDs contra a API real — IDs podem mudar entre versões.
