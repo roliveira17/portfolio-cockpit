@@ -176,11 +176,11 @@
 
 ## Pendente — Ações Manuais (pós-deploy)
 
-- [ ] Adicionar API key OpenRouter nos secrets do Streamlit Cloud (`[openrouter] api_key`)
-- [ ] Rodar seed de teses: `uv run python -m data.seed`
+- [x] ✅ 2026/02/21 Adicionar API key OpenRouter nos secrets do Streamlit Cloud (`[openrouter] api_key`)
+- [x] ✅ 2026/02/21 Rodar seed de teses: `uv run python -m data.seed`
 - [x] ✅ 2026/02/21 Deletar arquivo morto `pages/4_thesis_board.py`
 - [ ] Teste manual: chat (streaming, vision), salvar análise, atualizar posição, KB filtros
-- [ ] Atualizar `requirements.txt` no Streamlit Cloud (pyettj, beautifulsoup4, lxml)
+- [x] ✅ 2026/02/21 `requirements.txt` já contém todas as dependências (pyettj, beautifulsoup4, lxml)
 
 ---
 
