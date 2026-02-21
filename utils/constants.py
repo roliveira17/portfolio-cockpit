@@ -116,16 +116,17 @@ FACTOR_SENSITIVITIES = {
         "BRAV3": +0.12,
     },
     "ibov_10pct": {
-        "INBR32": 1.2,
-        "ENGI4": 0.6,
-        "EQTL3": 0.7,
-        "ALOS3": 0.8,
-        "SUZB3": 0.9,
-        "KLBN4": 0.7,
-        "BRAV3": 1.3,
-        "PLPL3": 1.1,
-        "RAPT4": 1.0,
-        "GMAT3": 0.8,
+        # Valores = beta/10: impacto % quando IBOV move 10% (beta 1.2 → 0.12 = +12%)
+        "INBR32": 0.12,
+        "ENGI4": 0.06,
+        "EQTL3": 0.07,
+        "ALOS3": 0.08,
+        "SUZB3": 0.09,
+        "KLBN4": 0.07,
+        "BRAV3": 0.13,
+        "PLPL3": 0.11,
+        "RAPT4": 0.10,
+        "GMAT3": 0.08,
     },
 }
 
