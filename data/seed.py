@@ -699,21 +699,21 @@ def _cat(ticker: str, desc: str, date: str, impact: str, category: str) -> dict:
 
 
 SEED_CATALYSTS = [
-    _cat("MELI", "Earnings Q4 2025", "2026-02-19", "HIGH", "EARNINGS"),
-    _cat("ENGI4", "Earnings Q4 2025", "2026-02-25", "HIGH", "EARNINGS"),
-    _cat("NVDA", "Earnings Q4 FY2026", "2026-02-26", "HIGH", "EARNINGS"),
-    _cat("INBR32", "Earnings Q4 2025", "2026-02-27", "HIGH", "EARNINGS"),
-    _cat("EQTL3", "Earnings Q4 2025", "2026-03-05", "HIGH", "EARNINGS"),
-    _cat("SUZB3", "Earnings Q4 2025", "2026-03-06", "HIGH", "EARNINGS"),
-    _cat("KLBN4", "Earnings Q4 2025", "2026-03-10", "HIGH", "EARNINGS"),
-    _cat("TSM", "Relatorio receita mensal", "2026-03-10", "MEDIUM", "CORPORATE"),
-    _cat("GMAT3", "Earnings Q4 2025", "2026-03-12", "HIGH", "EARNINGS"),
-    _cat("BRAV3", "Dados producao mensal", "2026-03-15", "MEDIUM", "CORPORATE"),
-    _cat("ALOS3", "Earnings Q4 2025", "2026-03-18", "HIGH", "EARNINGS"),
-    _cat("PLPL3", "Earnings Q4 2025", "2026-03-19", "HIGH", "EARNINGS"),
-    _cat("RAPT4", "Earnings Q4 2025", "2026-03-20", "HIGH", "EARNINGS"),
-    _cat("EQTL3", "Revisao tarifaria ANEEL", "2026-03-20", "HIGH", "REGULATORY"),
-    _cat("GOOGL", "Google I/O 2026", "2026-05-15", "MEDIUM", "CORPORATE"),
+    _cat("MELI", "Q4 2025 Earnings Release", "2026-03-01", "HIGH", "EARNINGS"),
+    _cat("ENGI4", "Q4 2025 Earnings Release", "2026-03-05", "HIGH", "EARNINGS"),
+    _cat("INBR32", "Q4 2025 Earnings Release", "2026-03-10", "HIGH", "EARNINGS"),
+    _cat("TSM", "Monthly Revenue Report", "2026-03-10", "MEDIUM", "EARNINGS"),
+    _cat("EQTL3", "Q4 2025 Earnings Release", "2026-03-12", "HIGH", "EARNINGS"),
+    _cat("BRAV3", "Relatório de Produção Mensal", "2026-03-15", "MEDIUM", "CORPORATE"),
+    _cat("SUZB3", "Q4 2025 Earnings Release", "2026-03-18", "HIGH", "EARNINGS"),
+    _cat("KLBN4", "Q4 2025 Earnings Release", "2026-03-20", "HIGH", "EARNINGS"),
+    _cat("NVDA", "Q4 FY2026 Earnings (GTC)", "2026-03-25", "HIGH", "EARNINGS"),
+    _cat("ALOS3", "Q4 2025 Earnings Release", "2026-03-28", "MEDIUM", "EARNINGS"),
+    _cat("GMAT3", "Q4 2025 Earnings Release", "2026-03-28", "MEDIUM", "EARNINGS"),
+    _cat("PLPL3", "Q4 2025 Earnings Release", "2026-04-01", "MEDIUM", "EARNINGS"),
+    _cat("RAPT4", "Q4 2025 Earnings Release", "2026-04-02", "MEDIUM", "EARNINGS"),
+    _cat("EQTL3", "Revisão Tarifária ANEEL", "2026-04-15", "HIGH", "REGULATORY"),
+    _cat("ENGI4", "Revisão Tarifária ANEEL", "2026-05-01", "HIGH", "REGULATORY"),
 ]
 
 

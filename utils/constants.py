@@ -5,7 +5,7 @@
 # ============================================================
 
 TICKERS_BR = ["INBR32", "ENGI4", "EQTL3", "ALOS3", "SUZB3", "KLBN4", "BRAV3", "PLPL3", "RAPT4", "GMAT3"]
-TICKERS_US = ["TSM", "NVDA", "ASML", "MELI", "GOOGL", "SNPS", "MU"]
+TICKERS_US = ["TSM", "NVDA", "ASML", "MELI", "GOOGL", "SNPS", "MU", "EWY"]
 TICKERS_OTHER = ["FIDC_MICROCREDITO", "ELET_FMP", "CAIXA"]
 TICKERS_ALL = TICKERS_BR + TICKERS_US + TICKERS_OTHER
 
@@ -76,6 +76,7 @@ TICKER_SECTOR = {
     "GOOGL": "tech_semis",
     "SNPS": "tech_semis",
     "MU": "tech_semis",
+    "EWY": "fundos",
     "FIDC_MICROCREDITO": "fundos",
     "ELET_FMP": "fundos",
     "CAIXA": "caixa",
