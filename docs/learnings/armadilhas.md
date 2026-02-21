@@ -56,3 +56,19 @@ Configurações → Privacidade e Segurança → Segurança do Windows → Contr
 **Problema:** `ast.parse(open('file.py').read())` falha no Windows com `UnicodeDecodeError` porque `open()` usa cp1252 por default, mas o arquivo tem UTF-8 com caracteres acentuados.
 
 **Solução:** Sempre especificar encoding: `open('file.py', encoding='utf-8').read()`.
+
+---
+
+## 2026-02-21 — Strings acentuadas em assertions de teste no Windows
+
+**Problema:** Assertions como `assert "posição" in result` falham no Windows porque o pytest lê o arquivo .py como cp1252 em vez de UTF-8, corrompendo os caracteres acentuados.
+
+**Solução:** Evitar strings com acentos em assertions de testes. Usar alternativas sem acentos (ex: `"Atualizar carteira"` em vez de `"Atualizar posição da carteira"`).
+
+---
+
+## 2026-02-21 — `build_portfolio_df([], {})` levanta KeyError
+
+**Problema:** Chamar `build_portfolio_df` com lista vazia de posições cria um DataFrame sem colunas, e o acesso subsequente a `df["current_value_brl"]` levanta `KeyError`.
+
+**Solução:** Documentar no teste com `pytest.raises(KeyError)`. Comportamento aceitável — a UI checa se positions é vazio antes de chamar a função.

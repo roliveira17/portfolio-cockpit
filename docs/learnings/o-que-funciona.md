@@ -118,3 +118,23 @@
 **Freshness badge simples e efetivo:**
 - `session_state["_cache_timestamps"]` para rastrear quando dados foram atualizados.
 - `st.caption()` com emoji colorido (🟢/🟡/🟠) por faixa de tempo. Mínimo esforço, máximo valor.
+
+---
+
+## 2026-02-21 — Sessão 7: Sprint 7 (QA Test Automation)
+
+**Bypass de `@st.cache_data` em testes:**
+- Funções decoradas com `@st.cache_data` expõem a função original via `func.__wrapped__()`. Chamar `__wrapped__()` nos testes evita dependência do Streamlit runtime e cache.
+
+**Mock de pyettj com `patch.dict(sys.modules)`:**
+- `import pyettj.ettj as ettj` dentro de funções pega o atributo `.ettj` do módulo pai (MagicMock cria atributos automaticamente). Solução: criar mock pai com `.ettj = mock_ettj` explicitamente, e patchar ambos em `sys.modules`.
+- Pattern: `_make_pyettj_mock(return_df)` que retorna `(mock_pyettj, mock_ettj)` + `importlib.reload(data.yield_curve)` para forçar re-import.
+
+**Chainable MagicMock para Supabase:**
+- Pattern `_make_mock_client(data)` que configura `.table().select().eq().order().limit().execute().data` de uma vez. Cada método retorna o mesmo `table_mock`, e `.execute()` retorna um mock com `.data` configurável.
+
+**Fixtures compartilhadas em conftest.py:**
+- `sample_brapi_response`, `sample_treasury_xml`, `mock_supabase_client`, `sample_positions_data`, `sample_quotes` — 5 fixtures reutilizadas em múltiplos test files evitam duplicação massiva.
+
+**Testes 100% mockados = rápidos e confiáveis:**
+- 311 testes em ~1.6s sem nenhuma chamada real a APIs/DB. Bom para CI/CD. Zero flakiness.
