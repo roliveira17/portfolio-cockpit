@@ -52,12 +52,14 @@ def simulate_rebalance(
             continue
 
         qty = abs(diff_value) / price_brl
-        trades.append({
-            "ticker": ticker,
-            "action": "COMPRAR" if diff_pct > 0 else "VENDER",
-            "quantity": round(qty, 0),
-            "value_brl": round(abs(diff_value), 2),
-        })
+        trades.append(
+            {
+                "ticker": ticker,
+                "action": "COMPRAR" if diff_pct > 0 else "VENDER",
+                "quantity": round(qty, 0),
+                "value_brl": round(abs(diff_value), 2),
+            }
+        )
 
     hhi_new = _calc_hhi(new_weights_list)
 

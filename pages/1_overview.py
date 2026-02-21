@@ -24,6 +24,7 @@ from data.db import (
     save_portfolio_snapshot,
 )
 from data.market_data import fetch_all_quotes
+from utils.cache_info import record_fetch_time, show_freshness_badge
 from utils.formatting import fmt_brl, fmt_date, fmt_pct
 
 st.header("📊 Overview")
@@ -34,6 +35,7 @@ if not positions:
     st.warning("Não foi possível carregar posições. Verifique a conexão com o Supabase.")
     st.stop()
 quotes = fetch_all_quotes()
+record_fetch_time("quotes")
 df = build_portfolio_df(positions, quotes)
 
 # ============================================================
@@ -45,6 +47,8 @@ pnl_abs, pnl_pct = calc_total_pnl(df)
 cash_row = df[df["sector"] == "caixa"]
 cash_value = cash_row["current_value_brl"].sum() if not cash_row.empty else 0
 cash_pct = (cash_value / total * 100) if total > 0 else 0
+
+show_freshness_badge("quotes", "Cotações")
 
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Patrimônio", fmt_brl(total, compact=True))
@@ -72,7 +76,9 @@ if snapshots and len(snapshots) >= 2:
     snap_df = pd.DataFrame(snapshots)
     snap_df["date"] = pd.to_datetime(snap_df["date"])
     fig_hist = px.line(
-        snap_df, x="date", y="total_value_brl",
+        snap_df,
+        x="date",
+        y="total_value_brl",
         labels={"date": "", "total_value_brl": "Patrimônio (R$)"},
     )
     fig_hist.update_layout(
@@ -187,12 +193,14 @@ if not _latest_snap or _latest_snap.get("date") != _today:
             for _, r in df.iterrows()
             if r["current_value_brl"]
         ]
-        save_portfolio_snapshot({
-            "date": _today,
-            "total_value_brl": round(total, 2),
-            "total_value_usd": round(brl_to_usd(total) or 0, 2),
-            "cash_brl": round(cash_value, 2),
-            "positions_data": _positions_data,
-        })
+        save_portfolio_snapshot(
+            {
+                "date": _today,
+                "total_value_brl": round(total, 2),
+                "total_value_usd": round(brl_to_usd(total) or 0, 2),
+                "cash_brl": round(cash_value, 2),
+                "positions_data": _positions_data,
+            }
+        )
     except Exception:
         pass  # falha silenciosa — snapshot é best-effort

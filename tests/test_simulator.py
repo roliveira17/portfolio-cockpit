@@ -30,10 +30,7 @@ def test_calc_hhi_realistic():
 
 def test_simulate_rebalance_no_change(sample_portfolio_df):
     # Manter pesos atuais → nenhum trade
-    current_weights = {
-        row["ticker"]: float(row["weight"])
-        for _, row in sample_portfolio_df.iterrows()
-    }
+    current_weights = {row["ticker"]: float(row["weight"]) for _, row in sample_portfolio_df.iterrows()}
     result = simulate_rebalance(sample_portfolio_df, current_weights)
     assert result["trades"] == []
     assert result["hhi_old"] == result["hhi_new"]
@@ -60,10 +57,17 @@ def test_simulate_rebalance_has_trades(sample_portfolio_df):
 
 
 def test_simulate_rebalance_empty_df():
-    empty = pd.DataFrame(columns=[
-        "ticker", "weight", "target_weight", "current_price",
-        "current_value_brl", "currency", "sector",
-    ])
+    empty = pd.DataFrame(
+        columns=[
+            "ticker",
+            "weight",
+            "target_weight",
+            "current_price",
+            "current_value_brl",
+            "currency",
+            "sector",
+        ]
+    )
     empty["current_value_brl"] = pd.to_numeric(empty["current_value_brl"])
     result = simulate_rebalance(empty, {})
     assert result["trades"] == []
@@ -71,7 +75,11 @@ def test_simulate_rebalance_empty_df():
 
 def test_simulate_new_trade_buy(sample_portfolio_df):
     result = simulate_new_trade(
-        sample_portfolio_df, "AAA", "COMPRAR", 50, 12.0,
+        sample_portfolio_df,
+        "AAA",
+        "COMPRAR",
+        50,
+        12.0,
     )
     assert result is not None
     assert result["new_weight"] > result["old_weight"]
@@ -81,7 +89,11 @@ def test_simulate_new_trade_buy(sample_portfolio_df):
 
 def test_simulate_new_trade_sell(sample_portfolio_df):
     result = simulate_new_trade(
-        sample_portfolio_df, "AAA", "VENDER", 50, 12.0,
+        sample_portfolio_df,
+        "AAA",
+        "VENDER",
+        50,
+        12.0,
     )
     assert result is not None
     assert result["new_weight"] < result["old_weight"]
@@ -91,7 +103,11 @@ def test_simulate_new_trade_sell(sample_portfolio_df):
 
 def test_simulate_new_trade_hhi_changes(sample_portfolio_df):
     result = simulate_new_trade(
-        sample_portfolio_df, "AAA", "COMPRAR", 100, 12.0,
+        sample_portfolio_df,
+        "AAA",
+        "COMPRAR",
+        100,
+        12.0,
     )
     # Comprar mais AAA (já grande) deve aumentar concentração
     assert result["hhi_new"] >= result["hhi_old"]

@@ -96,11 +96,13 @@ if mode == "Rebalanceamento":
             }
             exp_rows = []
             for k in old_exp:
-                exp_rows.append({
-                    "Fator": factor_labels.get(k, k),
-                    "Atual (%)": f"{old_exp[k]:.1f}",
-                    "Novo (%)": f"{new_exp.get(k, 0):.1f}",
-                })
+                exp_rows.append(
+                    {
+                        "Fator": factor_labels.get(k, k),
+                        "Atual (%)": f"{old_exp[k]:.1f}",
+                        "Novo (%)": f"{new_exp.get(k, 0):.1f}",
+                    }
+                )
             if exp_rows:
                 st.dataframe(pd.DataFrame(exp_rows), use_container_width=True, hide_index=True)
 
@@ -123,21 +125,33 @@ elif mode == "Stress Test":
     sc1, sc2 = st.columns(2)
     with sc1:
         selic_shock = st.slider(
-            "Selic (pp)", min_value=-2.0, max_value=3.0,
-            value=defaults.get("selic_1pp", 0.0), step=0.25,
+            "Selic (pp)",
+            min_value=-2.0,
+            max_value=3.0,
+            value=defaults.get("selic_1pp", 0.0),
+            step=0.25,
         )
         brent_shock = st.slider(
-            "Brent (%)", min_value=-30.0, max_value=30.0,
-            value=defaults.get("brent_10pct", 0.0), step=5.0,
+            "Brent (%)",
+            min_value=-30.0,
+            max_value=30.0,
+            value=defaults.get("brent_10pct", 0.0),
+            step=5.0,
         )
     with sc2:
         usdbrl_shock = st.slider(
-            "USD/BRL (%)", min_value=-15.0, max_value=20.0,
-            value=defaults.get("usdbrl_10pct", 0.0), step=1.0,
+            "USD/BRL (%)",
+            min_value=-15.0,
+            max_value=20.0,
+            value=defaults.get("usdbrl_10pct", 0.0),
+            step=1.0,
         )
         ibov_shock = st.slider(
-            "IBOV (%)", min_value=-25.0, max_value=25.0,
-            value=defaults.get("ibov_10pct", 0.0), step=1.0,
+            "IBOV (%)",
+            min_value=-25.0,
+            max_value=25.0,
+            value=defaults.get("ibov_10pct", 0.0),
+            step=1.0,
         )
 
     shocks = {
@@ -165,18 +179,22 @@ elif mode == "Stress Test":
             pos_df = pd.DataFrame(per_pos)
             pos_df = pos_df.sort_values("impact_pct")
             display_cols = ["ticker", "current_value_brl", "impact_pct", "impact_brl", "new_value_brl"]
-            renamed = pos_df[display_cols].rename(columns={
-                "ticker": "Ticker",
-                "current_value_brl": "Valor Atual (R$)",
-                "impact_pct": "Impacto (%)",
-                "impact_brl": "Impacto (R$)",
-                "new_value_brl": "Novo Valor (R$)",
-            })
+            renamed = pos_df[display_cols].rename(
+                columns={
+                    "ticker": "Ticker",
+                    "current_value_brl": "Valor Atual (R$)",
+                    "impact_pct": "Impacto (%)",
+                    "impact_brl": "Impacto (R$)",
+                    "new_value_brl": "Novo Valor (R$)",
+                }
+            )
             st.dataframe(renamed, use_container_width=True, hide_index=True)
             csv_stress = renamed.to_csv(index=False)
             st.download_button(
-                "📥 Exportar CSV", csv_stress,
-                "stress_test.csv", "text/csv",
+                "📥 Exportar CSV",
+                csv_stress,
+                "stress_test.csv",
+                "text/csv",
             )
 
 # ============================================================

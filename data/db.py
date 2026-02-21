@@ -142,9 +142,7 @@ def get_upcoming_catalysts(limit: int = 10) -> list[dict]:
 
 def get_catalysts_by_ticker(ticker: str) -> list[dict]:
     """Retorna catalisadores de um ticker, ordenados por data."""
-    return (
-        get_client().table("catalysts").select("*").eq("ticker", ticker).order("expected_date").execute().data
-    )
+    return get_client().table("catalysts").select("*").eq("ticker", ticker).order("expected_date").execute().data
 
 
 def get_all_catalysts(include_completed: bool = False) -> list[dict]:

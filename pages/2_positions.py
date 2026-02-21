@@ -5,11 +5,68 @@ from datetime import date
 import streamlit as st
 
 from analytics.portfolio import build_portfolio_df
-from data.db import get_positions, insert_row
-from data.market_data import fetch_all_quotes
+from data.db import get_positions, get_theses, insert_row
+from data.market_data import fetch_all_quotes, fetch_batch_price_history
+from utils.cache_info import record_fetch_time, show_freshness_badge
+from utils.constants import TICKERS_BR, TICKERS_US
 from utils.formatting import fmt_brl, fmt_pct, fmt_usd
 
 st.header("💼 Positions")
+
+
+# ============================================================
+# Helper: Botão Analisar (análise IA rápida)
+# ============================================================
+
+
+def _show_analyze_button(row, theses_map: dict) -> None:
+    """Exibe botão 'Analisar' que gera análise IA rápida da posição."""
+    if st.button(f"🤖 Analisar {row['ticker']}", key=f"analyze_{row['ticker']}"):
+        try:
+            from data.llm import stream_chat_response
+            from utils.constants import OPENROUTER_MODELS
+
+            thesis = theses_map.get(row["ticker"], {})
+            fmt_fn = fmt_brl if row["currency"] == "BRL" else fmt_usd
+
+            context = (
+                f"Ticker: {row['ticker']} ({row['company_name']})\n"
+                f"Setor: {row['sector']} | Mercado: {row['market']}\n"
+                f"Preço Atual: {fmt_fn(row['current_price'])}\n"
+                f"Preço Médio: {fmt_fn(row['avg_price'])}\n"
+                f"P&L: {fmt_pct(row['pnl_pct'], sign=True)}\n"
+                f"Peso: {row['weight']:.1f}% (target: {row['target_weight']:.1f}%)\n"
+            )
+            if thesis:
+                context += (
+                    f"Tese: {thesis.get('status', '?')} | Convicção: {thesis.get('conviction', '?')}\n"
+                    f"Target Price: {thesis.get('target_price', '?')}\n"
+                    f"ROIC: {thesis.get('roic_current', '?')}% | WACC: {thesis.get('wacc_estimated', '?')}%\n"
+                )
+
+            prompt = (
+                "Você é um analista GARP (Growth at Reasonable Price). "
+                "Faça uma análise rápida (3-5 parágrafos) da posição abaixo, "
+                "considerando: valuation, momentum, riscos e recomendação de ação.\n\n"
+                f"{context}"
+            )
+
+            messages = [
+                {"role": "system", "content": "Responda em português, de forma concisa e acionável."},
+                {"role": "user", "content": prompt},
+            ]
+
+            model_key = next(
+                (k for k in OPENROUTER_MODELS if "Flash" in k or "mini" in k or "Haiku" in k),
+                list(OPENROUTER_MODELS.keys())[0],
+            )
+
+            with st.spinner("Analisando..."):
+                st.write_stream(stream_chat_response(messages, model_key))
+
+        except Exception as e:
+            st.warning(f"Análise IA indisponível: {e}")
+
 
 # --- Carregar dados ---
 positions = get_positions(active_only=True)
@@ -17,11 +74,27 @@ if not positions:
     st.warning("Não foi possível carregar posições. Verifique a conexão com o Supabase.")
     st.stop()
 quotes = fetch_all_quotes()
+record_fetch_time("quotes")
 df = build_portfolio_df(positions, quotes)
+
+# --- Sparklines: histórico 30d ---
+price_hist = fetch_batch_price_history(tickers_br=TICKERS_BR, tickers_us=TICKERS_US, period="1mo")
+spark_map = {}
+if price_hist is not None:
+    for col in price_hist.columns:
+        vals = price_hist[col].dropna().tolist()
+        spark_map[col] = vals[-20:] if len(vals) > 20 else vals
+df["spark"] = df["ticker"].apply(lambda t: spark_map.get(t, []))
+
+# --- Theses para filtro de revisão vencida ---
+theses = get_theses() or []
+theses_by_ticker = {t["ticker"]: t for t in theses}
 
 # ============================================================
 # Filtros
 # ============================================================
+
+show_freshness_badge("quotes", "Cotações")
 
 col_f1, col_f2 = st.columns(2)
 with col_f1:
@@ -31,57 +104,80 @@ with col_f2:
     markets = ["Todos", "BR", "US"]
     selected_market = st.selectbox("Filtro Mercado", markets)
 
+# --- Filtros rápidos preset ---
+st.markdown("**Filtros rápidos:**")
+preset_cols = st.columns(5)
+preset = None
+with preset_cols[0]:
+    if st.button("Todos", use_container_width=True):
+        preset = "all"
+with preset_cols[1]:
+    if st.button("Overweight", use_container_width=True):
+        preset = "over"
+with preset_cols[2]:
+    if st.button("Underweight", use_container_width=True):
+        preset = "under"
+with preset_cols[3]:
+    if st.button("Top P&L", use_container_width=True):
+        preset = "top_pnl"
+with preset_cols[4]:
+    if st.button("Rev. Vencida", use_container_width=True):
+        preset = "overdue"
+
 filtered = df.copy()
 if selected_sector != "Todos":
     filtered = filtered[filtered["sector"] == selected_sector]
 if selected_market != "Todos":
     filtered = filtered[filtered["market"] == selected_market]
 
+# Aplicar preset
+if preset == "over":
+    filtered = filtered[filtered["weight_gap"] > 0.5]
+elif preset == "under":
+    filtered = filtered[filtered["weight_gap"] < -0.5]
+elif preset == "top_pnl":
+    filtered = filtered.nlargest(5, "pnl_pct")
+elif preset == "overdue":
+    today = str(date.today())
+    overdue_tickers = {t["ticker"] for t in theses if t.get("next_review") and t["next_review"] < today}
+    filtered = filtered[filtered["ticker"].isin(overdue_tickers)]
+
 # ============================================================
-# Tabela Principal
+# Tabela Principal (com sparklines via column_config)
 # ============================================================
 
 st.subheader(f"Posições ({len(filtered)})")
 
-display_cols = {
-    "ticker": "Ticker",
-    "company_name": "Empresa",
-    "sector": "Setor",
-    "weight": "Peso %",
-    "target_weight": "Target %",
-    "weight_gap": "Gap %",
-    "current_price": "Preço Atual",
-    "avg_price": "PM",
-    "pnl_pct": "P&L %",
-    "pnl_with_div_pct": "P&L c/ Div %",
-    "change_pct": "Var. Dia %",
-}
-
-display_df = filtered[list(display_cols.keys())].rename(columns=display_cols)
+display_cols = [
+    "ticker",
+    "company_name",
+    "sector",
+    "weight",
+    "target_weight",
+    "weight_gap",
+    "current_price",
+    "avg_price",
+    "pnl_pct",
+    "change_pct",
+    "spark",
+]
+display_df = filtered[display_cols].copy()
 
 st.dataframe(
-    display_df.style.format(
-        {
-            "Peso %": "{:.1f}",
-            "Target %": "{:.1f}",
-            "Gap %": "{:+.1f}",
-            "Preço Atual": "{:.2f}",
-            "PM": "{:.2f}",
-            "P&L %": "{:+.1f}",
-            "P&L c/ Div %": "{:+.1f}",
-            "Var. Dia %": "{:+.2f}",
-        },
-        na_rep="—",
-    ).applymap(
-        lambda v: (
-            "color: #2ca02c"
-            if isinstance(v, (int, float)) and v > 0
-            else "color: #d62728"
-            if isinstance(v, (int, float)) and v < 0
-            else ""
-        ),
-        subset=["P&L %", "P&L c/ Div %", "Var. Dia %", "Gap %"],
-    ),
+    display_df,
+    column_config={
+        "ticker": st.column_config.TextColumn("Ticker"),
+        "company_name": st.column_config.TextColumn("Empresa"),
+        "sector": st.column_config.TextColumn("Setor"),
+        "weight": st.column_config.NumberColumn("Peso %", format="%.1f"),
+        "target_weight": st.column_config.NumberColumn("Target %", format="%.1f"),
+        "weight_gap": st.column_config.NumberColumn("Gap %", format="%+.1f"),
+        "current_price": st.column_config.NumberColumn("Preço", format="%.2f"),
+        "avg_price": st.column_config.NumberColumn("PM", format="%.2f"),
+        "pnl_pct": st.column_config.NumberColumn("P&L %", format="%+.1f"),
+        "change_pct": st.column_config.NumberColumn("Dia %", format="%+.2f"),
+        "spark": st.column_config.LineChartColumn("30d", width="small"),
+    },
     use_container_width=True,
     hide_index=True,
     height=min(35 * len(display_df) + 38, 600),
@@ -127,8 +223,11 @@ if tickers:
         gap_label = "overweight" if gap > 0 else "underweight" if gap < 0 else "on target"
         st.markdown(f"Gap: {gap:+.1f}% ({gap_label})")
 
+    # --- Botão "Analisar" (análise IA rápida) ---
+    _show_analyze_button(row, theses_by_ticker)
+
 # ============================================================
-# Registro de Transações (Task 4.3)
+# Registro de Transações
 # ============================================================
 
 st.markdown("---")
@@ -175,5 +274,5 @@ with st.expander("➕ Nova Transação"):
 # ============================================================
 
 st.markdown("---")
-csv = filtered.to_csv(index=False)
+csv = filtered.drop(columns=["spark"], errors="ignore").to_csv(index=False)
 st.download_button("📥 Exportar CSV", csv, "positions.csv", "text/csv")
