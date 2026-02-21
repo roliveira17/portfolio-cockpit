@@ -272,7 +272,9 @@ class TestStreamCapturesUsage:
 
         from data.llm import stream_chat_response
 
-        chunks = list(stream_chat_response([{"role": "user", "content": "Hi"}], "Claude Sonnet 4.6 (~$2.25/sess\u00e3o)"))
+        messages = [{"role": "user", "content": "Hi"}]
+        model_key = "Claude Sonnet 4.6 (~$2.25/sess\u00e3o)"
+        chunks = list(stream_chat_response(messages, model_key))
         assert "Hello" in chunks
 
         from data.llm import st
