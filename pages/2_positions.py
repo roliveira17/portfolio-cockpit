@@ -1,5 +1,6 @@
 """Página Positions — Visão detalhada de cada posição."""
 
+import re
 from datetime import date
 
 import streamlit as st
@@ -8,7 +9,7 @@ from analytics.portfolio import build_portfolio_df
 from data.db import get_position_by_ticker, get_positions, get_theses, insert_row, update_row
 from data.market_data import fetch_all_quotes, fetch_batch_price_history, fetch_weekly_changes
 from utils.cache_info import record_fetch_time, show_freshness_badge
-from utils.constants import TICKERS_BR, TICKERS_US
+from utils.constants import TICKER_SECTOR, TICKERS_BR, TICKERS_US
 from utils.formatting import fmt_brl, fmt_pct, fmt_usd
 
 st.header("💼 Positions")
@@ -296,28 +297,110 @@ with col_exp:
 with col_imp:
     uploaded = st.file_uploader("📤 Importar CSV", type=["csv"], key="import_csv")
     if uploaded is not None:
+        import io
+
         import pandas as pd
 
         try:
-            import_df = pd.read_csv(uploaded)
+            content = uploaded.getvalue().decode("utf-8")
+            if ";" in content.split("\n")[0]:
+                imp_df = pd.read_csv(io.StringIO(content), sep=";", decimal=",")
+            else:
+                imp_df = pd.read_csv(io.StringIO(content))
+
+            imp_df.columns = [c.strip().lower() for c in imp_df.columns]
+
             required = {"ticker", "quantity", "avg_price"}
-            if not required.issubset(set(import_df.columns)):
+            if not required.issubset(set(imp_df.columns)):
                 st.error(f"CSV deve conter colunas: {', '.join(required)}")
             else:
-                updated_count = 0
-                for _, imp_row in import_df.iterrows():
-                    pos = get_position_by_ticker(str(imp_row["ticker"]))
+                for col in ["quantity", "avg_price"]:
+                    if imp_df[col].dtype == object:
+                        imp_df[col] = (
+                            imp_df[col].str.replace(".", "", regex=False)
+                            .str.replace(",", ".", regex=False)
+                            .astype(float)
+                        )
+
+                preview_rows = []
+                for _, imp_row in imp_df.iterrows():
+                    ticker = str(imp_row["ticker"]).strip().upper()
+                    pos = get_position_by_ticker(ticker)
+                    qty_new = float(imp_row["quantity"])
+                    pm_new = float(imp_row["avg_price"])
                     if pos:
-                        update_data = {
-                            "quantity": float(imp_row["quantity"]),
-                            "avg_price": float(imp_row["avg_price"]),
-                            "total_invested": float(imp_row["quantity"]) * float(imp_row["avg_price"]),
-                        }
-                        update_row("positions", pos["id"], update_data)
-                        updated_count += 1
-                if updated_count:
-                    st.success(f"{updated_count} posições atualizadas. Recarregue a página.")
-                else:
-                    st.warning("Nenhuma posição encontrada para atualizar.")
+                        preview_rows.append({
+                            "ticker": ticker,
+                            "qty_atual": pos["quantity"],
+                            "qty_nova": qty_new,
+                            "pm_atual": pos["avg_price"],
+                            "pm_novo": pm_new,
+                            "acao": "ATUALIZAR",
+                        })
+                    else:
+                        preview_rows.append({
+                            "ticker": ticker,
+                            "qty_atual": "NOVO",
+                            "qty_nova": qty_new,
+                            "pm_atual": "NOVO",
+                            "pm_novo": pm_new,
+                            "acao": "CRIAR",
+                        })
+
+                if preview_rows:
+                    st.subheader("Preview da importação")
+                    st.dataframe(pd.DataFrame(preview_rows), hide_index=True)
+
+                    if st.button("Confirmar importação", type="primary"):
+                        created = 0
+                        updated_count = 0
+                        for row_p in preview_rows:
+                            ticker = row_p["ticker"]
+                            qty = row_p["qty_nova"]
+                            pm = row_p["pm_novo"]
+                            if row_p["acao"] == "ATUALIZAR":
+                                pos = get_position_by_ticker(ticker)
+                                update_row("positions", pos["id"], {
+                                    "quantity": qty,
+                                    "avg_price": pm,
+                                    "total_invested": qty * pm,
+                                })
+                                updated_count += 1
+                            else:
+                                _special = {"CAIXA", "ELET_FMP", "FIDC_MICROCREDITO"}
+                                if ticker in TICKERS_BR or ticker in _special:
+                                    market, currency = "BR", "BRL"
+                                elif re.search(r"\d$", ticker):
+                                    market, currency = "BR", "BRL"
+                                else:
+                                    market, currency = "US", "USD"
+                                sector = TICKER_SECTOR.get(ticker)
+                                if not sector:
+                                    if ticker == "EWY" or ticker.startswith("EW"):
+                                        sector = "fundos"
+                                    elif market == "US":
+                                        sector = "tech_semis"
+                                    else:
+                                        sector = "consumo_varejo"
+                                insert_row("positions", {
+                                    "ticker": ticker,
+                                    "company_name": ticker,
+                                    "market": market,
+                                    "currency": currency,
+                                    "sector": sector,
+                                    "quantity": qty,
+                                    "avg_price": pm,
+                                    "total_invested": qty * pm,
+                                    "dividends_received": 0,
+                                    "target_weight": 0,
+                                    "is_active": True,
+                                })
+                                created += 1
+                        msg = []
+                        if updated_count:
+                            msg.append(f"{updated_count} atualizadas")
+                        if created:
+                            msg.append(f"{created} criadas")
+                        st.success(f"Posições {', '.join(msg)}. Recarregue a página.")
         except Exception as e:
             st.error(f"Erro ao importar: {e}")
