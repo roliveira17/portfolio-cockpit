@@ -1,349 +1,299 @@
-"""Página Knowledge Base — Repositório analítico por ação."""
+"""Pagina Knowledge Base — Card-based layout unificando deep dives e relatorios."""
 
 import pandas as pd
-import plotly.express as px
 import streamlit as st
 
-from data.db import (
-    get_all_deep_dives,
-    get_analysis_reports,
-    get_deep_dives_by_ticker,
-    get_next_deep_dive_version,
-    insert_row,
-)
-from data.market_data import fetch_all_quotes
+from data.db import get_all_deep_dives, get_analysis_reports, get_deep_dives_by_ticker
 from utils.constants import (
     CONVICTION_LABELS,
     REPORT_TYPES,
+    SECTORS,
     THESIS_STATUS,
-    TICKERS_BR,
-    TICKERS_US,
+    TICKER_SECTOR,
 )
 
-st.header("📚 Knowledge Base")
 
-# ============================================================
-# Busca full-text (2.17)
-# ============================================================
+def _fix_encoding(text: str) -> str:
+    """Try latin-1 -> utf-8 re-encode; fall back to original."""
+    try:
+        return text.encode("latin-1").decode("utf-8")
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        return text
 
-search_query = st.text_input("🔍 Buscar", placeholder="Buscar por título, ticker, tags...")
 
-tab_ticker, tab_reports, tab_timeline = st.tabs(["📄 Por Ticker", "📋 Relatórios", "📅 Timeline"])
+def _build_unified_items() -> list[dict]:
+    """Merge deep_dives and analysis_reports into a single list of cards."""
+    items: list[dict] = []
 
-# ============================================================
-# Aba 1: Por Ticker (2.11)
-# ============================================================
-
-with tab_ticker:
-    all_dives = get_all_deep_dives()
-
-    # Tickers com deep dives
-    tickers_with_dives = sorted(set(d["ticker"] for d in all_dives))
-    if not tickers_with_dives:
-        st.info("Nenhum deep dive encontrado.")
-    else:
-        selected_ticker = st.selectbox("Selecionar Ticker", tickers_with_dives)
-        dives = get_deep_dives_by_ticker(selected_ticker)
-
-        # Filtrar por busca
-        if search_query:
-            dives = [
-                d for d in dives
-                if search_query.lower() in (d.get("title") or "").lower()
-                or search_query.lower() in (d.get("summary") or "").lower()
-                or search_query.lower() in str(d.get("tags") or []).lower()
-            ]
-
-        st.markdown(f"**{selected_ticker}** — {len(dives)} versão(ões)")
-
-        if dives:
-            # Lista de versões
-            for dive in dives:
-                version = dive.get("version", 1)
-                is_latest = version == dives[0]["version"]
-                badge = " ← VIGENTE" if is_latest else ""
-                status_emoji = ""
-                if dive.get("thesis_status_at_time"):
-                    s = THESIS_STATUS.get(dive["thesis_status_at_time"], {})
-                    status_emoji = s.get("emoji", "")
-
-                conv_label = CONVICTION_LABELS.get(dive.get("conviction_at_time", ""), "")
-                target_str = f"Target: {dive['target_price_at_time']:.2f}" if dive.get("target_price_at_time") else ""
-
-                label = f"v{version} ({dive.get('date', '?')}) {status_emoji} {conv_label} {target_str}{badge}"
-                with st.expander(label):
-                    if dive.get("summary"):
-                        st.markdown(f"**Resumo:** {dive['summary']}")
-                    if dive.get("key_changes"):
-                        st.markdown(f"**Mudanças:** {dive['key_changes']}")
-                    if dive.get("analyst"):
-                        st.caption(f"Analista: {dive['analyst']}")
-
-                    # Botões
-                    bc1, bc2 = st.columns(2)
-                    with bc1:
-                        if st.button("📄 Ver completo", key=f"view_{dive['id']}"):
-                            st.session_state[f"show_dive_{dive['id']}"] = True
-                    with bc2:
-                        content = dive.get("content_md", "")
-                        st.download_button(
-                            "📥 Download .md",
-                            content,
-                            f"{selected_ticker}_v{version}.md",
-                            "text/markdown",
-                            key=f"dl_{dive['id']}",
-                        )
-
-                    # Renderizar markdown se solicitado
-                    if st.session_state.get(f"show_dive_{dive['id']}"):
-                        st.markdown("---")
-                        st.markdown(dive.get("content_md", ""), unsafe_allow_html=False)
-
-            # --- Comparação entre versões (2.15) ---
-            if len(dives) >= 2:
-                st.markdown("---")
-                st.subheader("Comparação entre Versões")
-                cc1, cc2 = st.columns(2)
-                version_labels = [f"v{d['version']} ({d.get('date', '?')})" for d in dives]
-                with cc1:
-                    v1_idx = st.selectbox("Versão A", range(len(dives)), format_func=lambda i: version_labels[i])
-                with cc2:
-                    v2_default = min(1, len(dives) - 1)
-                    v2_idx = st.selectbox(
-                        "Versão B", range(len(dives)),
-                        index=v2_default, format_func=lambda i: version_labels[i],
-                    )
-                if v1_idx != v2_idx:
-                    d1, d2 = dives[v1_idx], dives[v2_idx]
-                    compare_fields = [
-                        ("Status", "thesis_status_at_time"),
-                        ("Convicção", "conviction_at_time"),
-                        ("Target Price", "target_price_at_time"),
-                    ]
-                    compare_data = []
-                    for label, field in compare_fields:
-                        val_a = d1.get(field, "—") or "—"
-                        val_b = d2.get(field, "—") or "—"
-                        compare_data.append({
-                            "Métrica": label,
-                            version_labels[v1_idx]: val_a,
-                            version_labels[v2_idx]: val_b,
-                        })
-
-                    # key_metrics comparison
-                    km1 = d1.get("key_metrics") or {}
-                    km2 = d2.get("key_metrics") or {}
-                    all_keys = sorted(set(list(km1.keys()) + list(km2.keys())))
-                    for k in all_keys:
-                        compare_data.append({
-                            "Métrica": k,
-                            version_labels[v1_idx]: km1.get(k, "—"),
-                            version_labels[v2_idx]: km2.get(k, "—"),
-                        })
-
-                    st.dataframe(pd.DataFrame(compare_data), use_container_width=True, hide_index=True)
-
-            # --- Gráfico de evolução (2.16) ---
-            if len(dives) >= 2:
-                st.markdown("---")
-                st.subheader("Evolução por Versão")
-                evo_data = []
-                for d in reversed(dives):  # cronológica
-                    if d.get("date"):
-                        row = {"Data": d["date"], "Versão": f"v{d['version']}"}
-                        if d.get("target_price_at_time"):
-                            row["Target Price"] = float(d["target_price_at_time"])
-                        km = d.get("key_metrics") or {}
-                        if "roic" in km:
-                            row["ROIC (%)"] = float(km["roic"])
-                        evo_data.append(row)
-                if evo_data:
-                    df_evo = pd.DataFrame(evo_data)
-                    df_evo["Data"] = pd.to_datetime(df_evo["Data"])
-                    numeric_cols = [c for c in df_evo.columns if c not in ("Data", "Versão")]
-                    if numeric_cols:
-                        fig_evo = px.line(df_evo, x="Data", y=numeric_cols, markers=True)
-                        fig_evo.update_layout(height=300, margin=dict(t=30, b=30))
-                        st.plotly_chart(fig_evo, use_container_width=True)
-
-    # --- Upload de novo deep dive (2.14) ---
-    st.markdown("---")
-    st.subheader("Upload Novo Deep Dive")
-    with st.expander("➕ Adicionar Deep Dive"):
-        with st.form("upload_deep_dive"):
-            all_tickers = sorted(TICKERS_BR + TICKERS_US)
-            upload_ticker = st.selectbox("Ticker", all_tickers, key="upload_ticker")
-            upload_content = st.text_area("Conteúdo Markdown", height=200)
-
-            uc1, uc2 = st.columns(2)
-            with uc1:
-                upload_title = st.text_input("Título")
-                upload_status = st.selectbox(
-                    "Status da tese", list(THESIS_STATUS.keys()),
-                    format_func=lambda x: f"{THESIS_STATUS[x]['emoji']} {THESIS_STATUS[x]['label']}",
-                    key="upload_status",
-                )
-            with uc2:
-                upload_conviction = st.selectbox(
-                    "Convicção", list(CONVICTION_LABELS.keys()),
-                    format_func=lambda x: CONVICTION_LABELS[x],
-                    key="upload_conv",
-                )
-                upload_target = st.number_input("Target Price", min_value=0.0, step=0.01, key="upload_target")
-
-            upload_changes = st.text_area("Mudanças vs. versão anterior", height=60)
-
-            if st.form_submit_button("📤 Upload"):
-                if upload_content and upload_title:
-                    next_ver = get_next_deep_dive_version(upload_ticker)
-                    quotes = fetch_all_quotes()
-                    current = quotes.get(upload_ticker, {}).get("price")
-                    insert_row("deep_dives", {
-                        "ticker": upload_ticker,
-                        "version": next_ver,
-                        "title": upload_title,
-                        "content_md": upload_content,
-                        "summary": upload_content[:500] if len(upload_content) > 500 else upload_content,
-                        "thesis_status_at_time": upload_status,
-                        "conviction_at_time": upload_conviction,
-                        "target_price_at_time": upload_target or None,
-                        "current_price_at_time": current,
-                        "key_changes": upload_changes,
-                        "key_metrics": {},
-                        "tags": ["manual_upload"],
-                        "date": str(pd.Timestamp.now().date()),
-                    })
-                    st.success(f"Deep dive v{next_ver} de {upload_ticker} criado!")
-                    st.rerun()
-                else:
-                    st.error("Título e conteúdo são obrigatórios.")
-
-# ============================================================
-# Aba 2: Relatórios (2.12)
-# ============================================================
-
-with tab_reports:
-    reports = get_analysis_reports()
-
-    # Filtros
-    rc1, rc2 = st.columns(2)
-    with rc1:
-        type_filter = st.selectbox(
-            "Tipo", ["Todos"] + list(REPORT_TYPES.keys()),
-            format_func=lambda x: "Todos" if x == "Todos" else REPORT_TYPES[x],
+    for d in get_all_deep_dives():
+        sector_key = TICKER_SECTOR.get(d.get("ticker", ""), "")
+        sector_label = SECTORS.get(sector_key, {}).get("label", "")
+        items.append(
+            {
+                "source": "deep_dive",
+                "id": d["id"],
+                "ticker": d.get("ticker", ""),
+                "title": d.get("title", d.get("ticker", "—")),
+                "date": d.get("date", ""),
+                "summary": d.get("summary", ""),
+                "content_md": d.get("content_md", ""),
+                "version": d.get("version", 1),
+                "status": d.get("thesis_status_at_time", ""),
+                "conviction": d.get("conviction_at_time", ""),
+                "sector_key": sector_key,
+                "sector_label": sector_label,
+                "tags": d.get("tags") or [],
+                "key_metrics": d.get("key_metrics") or {},
+                "type_label": "Deep Dive",
+            }
         )
-    with rc2:
-        all_tags = set()
-        for r in reports:
-            all_tags.update(r.get("tags") or [])
-        tag_filter = st.multiselect("Tags", sorted(all_tags))
 
-    # Filtrar
-    filtered = reports
-    if type_filter != "Todos":
-        filtered = [r for r in filtered if r.get("report_type") == type_filter]
-    if tag_filter:
-        filtered = [r for r in filtered if set(tag_filter) & set(r.get("tags") or [])]
-    if search_query:
+    for r in get_analysis_reports():
+        items.append(
+            {
+                "source": "report",
+                "id": r["id"],
+                "ticker": ", ".join(r.get("tickers_mentioned") or []),
+                "title": r.get("title", "—"),
+                "date": r.get("date", ""),
+                "summary": r.get("summary", ""),
+                "content_md": r.get("content_md", ""),
+                "version": None,
+                "status": "",
+                "conviction": "",
+                "sector_key": "",
+                "sector_label": "",
+                "tags": r.get("tags") or [],
+                "key_metrics": {},
+                "type_label": REPORT_TYPES.get(r.get("report_type", ""), "Relatorio"),
+            }
+        )
+
+    items.sort(key=lambda x: x.get("date") or "", reverse=True)
+    return items
+
+
+def _apply_filters(
+    items: list[dict],
+    search: str,
+    tickers: list[str],
+    doc_type: str,
+    status: str,
+    conviction: str,
+    sectors: list[str],
+    date_start,
+    date_end,
+) -> list[dict]:
+    """Apply all client-side filters to the unified items list."""
+    filtered = items
+
+    if search:
+        q = search.lower()
         filtered = [
-            r for r in filtered
-            if search_query.lower() in (r.get("title") or "").lower()
-            or search_query.lower() in (r.get("summary") or "").lower()
-            or search_query.lower() in str(r.get("tags") or []).lower()
+            i
+            for i in filtered
+            if q in (i["title"] or "").lower()
+            or q in (i["summary"] or "").lower()
+            or q in (i["content_md"] or "").lower()
+            or q in (i["ticker"] or "").lower()
+            or q in " ".join(i["tags"]).lower()
         ]
 
-    if not filtered:
-        st.info("Nenhum relatório encontrado.")
-    else:
-        for report in filtered:
-            type_label = REPORT_TYPES.get(report.get("report_type", ""), "—")
-            tags_str = ", ".join(report.get("tags") or [])
-            tickers_str = ", ".join(report.get("tickers_mentioned") or [])
+    if tickers:
+        filtered = [i for i in filtered if i["ticker"] in tickers or any(t in i["ticker"] for t in tickers)]
 
-            with st.expander(f"📄 {report['title']} — {report.get('date', '?')} ({type_label})"):
-                if tags_str:
-                    st.caption(f"Tags: {tags_str}")
-                if tickers_str:
-                    st.caption(f"Tickers: {tickers_str}")
-                if report.get("summary"):
-                    st.markdown(f"**Resumo:** {report['summary']}")
+    if doc_type == "Deep Dive":
+        filtered = [i for i in filtered if i["source"] == "deep_dive"]
+    elif doc_type == "Relatorio":
+        filtered = [i for i in filtered if i["source"] == "report"]
 
-                rbc1, rbc2 = st.columns(2)
-                with rbc1:
-                    if st.button("📄 Ver completo", key=f"view_report_{report['id']}"):
-                        st.session_state[f"show_report_{report['id']}"] = True
-                with rbc2:
-                    st.download_button(
-                        "📥 Download .md",
-                        report.get("content_md", ""),
-                        f"{report['title'].replace(' ', '_')}.md",
-                        "text/markdown",
-                        key=f"dl_report_{report['id']}",
-                    )
+    if status != "Todos":
+        filtered = [i for i in filtered if i["status"] == status]
 
-                if st.session_state.get(f"show_report_{report['id']}"):
-                    st.markdown("---")
-                    st.markdown(report.get("content_md", ""), unsafe_allow_html=False)
+    if conviction != "Todos":
+        filtered = [i for i in filtered if i["conviction"] == conviction]
 
-# ============================================================
-# Aba 3: Timeline (2.13)
-# ============================================================
+    if sectors:
+        filtered = [i for i in filtered if i["sector_key"] in sectors]
 
-with tab_timeline:
-    all_dives = get_all_deep_dives()
-    all_reports = get_analysis_reports()
+    if date_start:
+        ds = str(date_start)
+        filtered = [i for i in filtered if (i["date"] or "") >= ds]
+    if date_end:
+        de = str(date_end)
+        filtered = [i for i in filtered if (i["date"] or "") <= de]
 
-    timeline_items = []
-    for d in all_dives:
-        if d.get("date"):
-            timeline_items.append({
-                "Data": d["date"],
-                "Título": d.get("title", d["ticker"]),
-                "Tipo": "Deep Dive",
-                "Ticker": d["ticker"],
-                "Versão": f"v{d.get('version', 1)}",
-            })
-    for r in all_reports:
-        if r.get("date"):
-            timeline_items.append({
-                "Data": r["date"],
-                "Título": r.get("title", "—"),
-                "Tipo": "Relatório",
-                "Ticker": ", ".join(r.get("tickers_mentioned") or ["—"]),
-                "Versão": "",
-            })
+    return filtered
 
-    if search_query:
-        timeline_items = [
-            t for t in timeline_items
-            if search_query.lower() in t["Título"].lower()
-            or search_query.lower() in t["Ticker"].lower()
-        ]
 
-    if timeline_items:
-        df_tl = pd.DataFrame(timeline_items)
-        df_tl["Data"] = pd.to_datetime(df_tl["Data"])
-        df_tl = df_tl.sort_values("Data")
+def _render_card(item: dict, ticker_version_counts: dict[str, int]) -> None:
+    """Render a single card inside a bordered container."""
+    ticker = item["ticker"]
+    status_info = THESIS_STATUS.get(item["status"], {})
+    status_str = f"{status_info.get('emoji', '')} {status_info.get('label', '')}" if status_info else ""
+    conv_str = CONVICTION_LABELS.get(item["conviction"], "")
+    sector_str = item["sector_label"]
+    version_str = f"v{item['version']}" if item["version"] else ""
 
-        color_map = {"Deep Dive": "#1f77b4", "Relatório": "#ff7f0e"}
-        fig_tl = px.scatter(
-            df_tl, x="Data", y="Ticker", color="Tipo",
-            color_discrete_map=color_map,
-            hover_data=["Título", "Versão"],
-            size_max=12,
+    # Header line
+    icon = "📄" if item["source"] == "deep_dive" else "📋"
+    header = f"**{icon} {item['type_label']}  {ticker} — {item['title']}    {item['date'] or ''}**"
+
+    # Metadata line
+    meta_parts = [p for p in [status_str, f"Conv: {conv_str}" if conv_str else "", sector_str, version_str] if p]
+    meta_line = " | ".join(meta_parts)
+
+    summary_text = (item["summary"] or "")[:200]
+    if len(item.get("summary") or "") > 200:
+        summary_text += "..."
+
+    with st.container(border=True):
+        st.markdown(header)
+        if meta_line:
+            st.caption(meta_line)
+        if summary_text:
+            st.markdown(f"Resumo: {summary_text}")
+
+        col_dl, col_cmp = st.columns([2, 3])
+        with col_dl:
+            filename = f"{ticker.replace(', ', '_')}_{version_str or 'report'}.md"
+            st.download_button(
+                "📥 Download",
+                item["content_md"] or "",
+                filename,
+                "text/markdown",
+                key=f"dl_{item['id']}",
+            )
+        with col_cmp:
+            has_versions = item["source"] == "deep_dive" and ticker_version_counts.get(ticker, 0) > 1
+            if has_versions:
+                if st.button("🔄 Comparar versoes", key=f"cmp_{item['id']}"):
+                    st.session_state["compare_ticker"] = ticker
+
+        with st.expander("▶ Ver completo"):
+            content = _fix_encoding(item["content_md"] or "")
+            st.markdown(content, unsafe_allow_html=False)
+
+
+def _render_comparison(ticker: str) -> None:
+    """Render side-by-side version comparison for a ticker."""
+    st.subheader(f"Comparacao de Versoes — {ticker}")
+    dives = get_deep_dives_by_ticker(ticker)
+    if len(dives) < 2:
+        st.info("Menos de 2 versoes disponiveis.")
+        return
+
+    version_labels = [f"v{d['version']} ({d.get('date', '?')})" for d in dives]
+    c1, c2, c3 = st.columns([3, 3, 2])
+    with c1:
+        v1_idx = st.selectbox("Versao A", range(len(dives)), format_func=lambda i: version_labels[i])
+    with c2:
+        v2_idx = st.selectbox(
+            "Versao B", range(len(dives)), index=min(1, len(dives) - 1), format_func=lambda i: version_labels[i]
         )
-        fig_tl.update_traces(marker=dict(size=12))
-        fig_tl.update_layout(
-            height=max(300, len(df_tl["Ticker"].unique()) * 40 + 100),
-            margin=dict(t=30, b=30),
-            xaxis_title="",
-            yaxis_title="",
-        )
-        st.plotly_chart(fig_tl, use_container_width=True)
+    with c3:
+        if st.button("Fechar comparacao"):
+            del st.session_state["compare_ticker"]
+            st.rerun()
 
-        st.dataframe(
-            df_tl[["Data", "Tipo", "Ticker", "Título", "Versão"]].sort_values("Data", ascending=False),
-            use_container_width=True, hide_index=True,
+    if v1_idx == v2_idx:
+        st.warning("Selecione versoes diferentes.")
+        return
+
+    d1, d2 = dives[v1_idx], dives[v2_idx]
+    rows: list[dict] = []
+    for label, field in [
+        ("Status", "thesis_status_at_time"),
+        ("Conviccao", "conviction_at_time"),
+        ("Target Price", "target_price_at_time"),
+    ]:
+        rows.append(
+            {
+                "Metrica": label,
+                version_labels[v1_idx]: d1.get(field, "—") or "—",
+                version_labels[v2_idx]: d2.get(field, "—") or "—",
+            }
         )
-    else:
-        st.info("Nenhum documento encontrado.")
+
+    km1, km2 = d1.get("key_metrics") or {}, d2.get("key_metrics") or {}
+    for k in sorted(set(list(km1.keys()) + list(km2.keys()))):
+        rows.append({"Metrica": k, version_labels[v1_idx]: km1.get(k, "—"), version_labels[v2_idx]: km2.get(k, "—")})
+
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+
+# ========================== Page layout ==========================
+
+st.header("📚 Knowledge Base")
+search_query = st.text_input("🔍 Buscar", placeholder="Buscar por titulo, ticker, tags, conteudo...")
+
+all_items = _build_unified_items()
+all_tickers_in_data = sorted(set(i["ticker"] for i in all_items if i["source"] == "deep_dive"))
+
+r2c1, r2c2, r2c3, r2c4 = st.columns([3, 2, 2, 2])
+with r2c1:
+    sel_tickers = st.multiselect("Ticker", all_tickers_in_data)
+with r2c2:
+    sel_type = st.selectbox("Tipo", ["Todos", "Deep Dive", "Relatorio"])
+with r2c3:
+    status_opts = ["Todos"] + list(THESIS_STATUS.keys())
+    sel_status = st.selectbox(
+        "Status",
+        status_opts,
+        format_func=lambda x: "Todos" if x == "Todos" else f"{THESIS_STATUS[x]['emoji']} {THESIS_STATUS[x]['label']}",
+    )
+with r2c4:
+    conv_opts = ["Todos"] + list(CONVICTION_LABELS.keys())
+    sel_conviction = st.selectbox(
+        "Conviccao",
+        conv_opts,
+        format_func=lambda x: "Todos" if x == "Todos" else CONVICTION_LABELS[x],
+    )
+
+# Row 3: Sector, Date range
+r3c1, r3c2, r3c3 = st.columns([4, 3, 3])
+with r3c1:
+    sector_opts = [k for k in SECTORS if k not in ("fundos", "caixa")]
+    sel_sectors = st.multiselect(
+        "Setor",
+        sector_opts,
+        format_func=lambda x: SECTORS[x]["label"],
+    )
+with r3c2:
+    sel_date_start = st.date_input("De", value=None, key="kb_date_start")
+with r3c3:
+    sel_date_end = st.date_input("Ate", value=None, key="kb_date_end")
+
+st.divider()
+
+# Version comparison panel (if active)
+if "compare_ticker" in st.session_state:
+    _render_comparison(st.session_state["compare_ticker"])
+    st.divider()
+
+# Apply filters and render cards
+filtered = _apply_filters(
+    all_items,
+    search_query,
+    sel_tickers,
+    sel_type,
+    sel_status,
+    sel_conviction,
+    sel_sectors,
+    sel_date_start,
+    sel_date_end,
+)
+
+# Pre-compute version counts per ticker for "Comparar versoes" button visibility
+ticker_version_counts: dict[str, int] = {}
+for item in all_items:
+    if item["source"] == "deep_dive":
+        t = item["ticker"]
+        ticker_version_counts[t] = ticker_version_counts.get(t, 0) + 1
+
+if not filtered:
+    st.info("Nenhum documento encontrado com os filtros atuais.")
+else:
+    st.caption(f"{len(filtered)} documento(s) encontrado(s)")
+    for item in filtered:
+        _render_card(item, ticker_version_counts)

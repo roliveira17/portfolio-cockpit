@@ -245,3 +245,64 @@ def get_latest_portfolio_snapshot() -> dict | None:
 def save_portfolio_snapshot(data: dict) -> dict:
     """Salva snapshot do portfólio. Chamado no page load do Overview (1x/dia)."""
     return insert_row("portfolio_snapshots", data)
+
+
+# ============================================================
+# Chat helpers (lightweight queries for AI context)
+# ============================================================
+
+
+def upsert_thesis(ticker: str, data: dict) -> dict:
+    """Insert or update a thesis for a given ticker."""
+    try:
+        existing = get_thesis_by_ticker(ticker)
+        if existing:
+            return update_row("theses", existing["id"], data)
+        return insert_row("theses", {**data, "ticker": ticker})
+    except Exception:
+        logger.warning(f"Supabase: falha ao upsert thesis para {ticker}")
+        return {}
+
+
+def update_position_fields(ticker: str, data: dict) -> dict | None:
+    """Update specific fields of a position by ticker."""
+    try:
+        position = get_position_by_ticker(ticker)
+        if not position:
+            return None
+        return update_row("positions", position["id"], data)
+    except Exception:
+        logger.warning(f"Supabase: falha ao atualizar position {ticker}")
+        return None
+
+
+def get_all_deep_dive_summaries() -> list[dict]:
+    """Return lightweight summaries of all deep dives (without content_md)."""
+    try:
+        return (
+            get_client()
+            .table("deep_dives")
+            .select("ticker, title, summary, date, version, thesis_status_at_time, conviction_at_time, key_metrics")
+            .order("date", desc=True)
+            .execute()
+            .data
+        )
+    except Exception:
+        logger.warning("Supabase: falha ao buscar deep_dive summaries")
+        return []
+
+
+def get_all_thesis_summaries() -> list[dict]:
+    """Return lightweight summaries of all theses."""
+    try:
+        return (
+            get_client()
+            .table("theses")
+            .select("ticker, status, conviction, summary, target_price, moat_rating, next_review")
+            .order("ticker")
+            .execute()
+            .data
+        )
+    except Exception:
+        logger.warning("Supabase: falha ao buscar thesis summaries")
+        return []

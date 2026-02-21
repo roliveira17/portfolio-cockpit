@@ -1,5 +1,6 @@
 """Popular banco de dados com dados iniciais do portfólio (PRD seção 4)."""
 
+import json
 import re
 import tomllib
 from pathlib import Path
@@ -312,12 +313,25 @@ def seed_transactions(client, ticker_to_id: dict[str, str]) -> None:
 
 
 TICKER_SECTOR = {
-    "INBR32": "financeiro", "ENGI4": "utilities", "EQTL3": "utilities",
-    "ALOS3": "consumo_varejo", "SUZB3": "energia_materiais", "KLBN4": "energia_materiais",
-    "BRAV3": "energia_materiais", "PLPL3": "consumo_varejo", "RAPT4": "consumo_varejo",
-    "GMAT3": "consumo_varejo", "MGLU3": "consumo_varejo", "UGPA3": "energia_materiais",
-    "TSM": "tech_semis", "NVDA": "tech_semis", "ASML": "tech_semis",
-    "MELI": "tech_semis", "GOOGL": "tech_semis", "SNPS": "tech_semis", "MU": "tech_semis",
+    "INBR32": "financeiro",
+    "ENGI4": "utilities",
+    "EQTL3": "utilities",
+    "ALOS3": "consumo_varejo",
+    "SUZB3": "energia_materiais",
+    "KLBN4": "energia_materiais",
+    "BRAV3": "energia_materiais",
+    "PLPL3": "consumo_varejo",
+    "RAPT4": "consumo_varejo",
+    "GMAT3": "consumo_varejo",
+    "MGLU3": "consumo_varejo",
+    "UGPA3": "energia_materiais",
+    "TSM": "tech_semis",
+    "NVDA": "tech_semis",
+    "ASML": "tech_semis",
+    "MELI": "tech_semis",
+    "GOOGL": "tech_semis",
+    "SNPS": "tech_semis",
+    "MU": "tech_semis",
 }
 
 # Metadados dos relatórios — PRD seção 4.6
@@ -343,6 +357,22 @@ REPORT_METADATA = {
 }
 
 KB_DIR = Path(__file__).parent.parent / "knowledge_base"
+
+
+def _fix_encoding(text: str) -> str:
+    """Fix double-encoded UTF-8 (mojibake) by re-encoding latin-1 → utf-8."""
+    try:
+        return text.encode("latin-1").decode("utf-8")
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        return text
+
+
+def _extract_field_regex(content: str, pattern: str, default: str | None = None) -> str | None:
+    """Extract first match of pattern from content, returning default if not found."""
+    match = re.search(pattern, content, re.IGNORECASE | re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return default
 
 
 def _extract_title(content: str) -> str:
@@ -397,34 +427,38 @@ def seed_deep_dives(client) -> None:
     # 18 arquivos de deepdives/
     for md_file in sorted(deepdives_dir.glob("*.md")):
         ticker = md_file.stem
-        content = md_file.read_text(encoding="utf-8")
+        content = _fix_encoding(md_file.read_text(encoding="utf-8"))
         sector = TICKER_SECTOR.get(ticker, "")
-        records.append({
-            "ticker": ticker,
-            "version": 1,
-            "title": _extract_title(content),
-            "analyst": _extract_analyst(content),
-            "content_md": content,
-            "summary": _extract_summary(content),
-            "key_metrics": {},
-            "tags": ["initial_deep_dive", sector],
-            "date": _extract_date(content),
-        })
+        records.append(
+            {
+                "ticker": ticker,
+                "version": 1,
+                "title": _extract_title(content),
+                "analyst": _extract_analyst(content),
+                "content_md": content,
+                "summary": _extract_summary(content),
+                "key_metrics": {},
+                "tags": ["initial_deep_dive", sector],
+                "date": _extract_date(content),
+            }
+        )
 
     # SUZB3 de reports/ (PRD 4.6 nota)
     if suzb3_file.exists():
-        content = suzb3_file.read_text(encoding="utf-8")
-        records.append({
-            "ticker": "SUZB3",
-            "version": 1,
-            "title": _extract_title(content),
-            "analyst": _extract_analyst(content),
-            "content_md": content,
-            "summary": _extract_summary(content),
-            "key_metrics": {},
-            "tags": ["initial_deep_dive", "energia_materiais"],
-            "date": _extract_date(content),
-        })
+        content = _fix_encoding(suzb3_file.read_text(encoding="utf-8"))
+        records.append(
+            {
+                "ticker": "SUZB3",
+                "version": 1,
+                "title": _extract_title(content),
+                "analyst": _extract_analyst(content),
+                "content_md": content,
+                "summary": _extract_summary(content),
+                "key_metrics": {},
+                "tags": ["initial_deep_dive", "energia_materiais"],
+                "date": _extract_date(content),
+            }
+        )
 
     res = client.table("deep_dives").insert(records).execute()
     print(f"  {len(res.data)} deep dives inseridos")
@@ -444,20 +478,214 @@ def seed_reports(client) -> None:
         if not filepath.exists():
             print(f"  AVISO: {filename} não encontrado, pulando")
             continue
-        content = filepath.read_text(encoding="utf-8")
-        records.append({
-            "title": meta["title"],
-            "report_type": meta["report_type"],
-            "content_md": content,
-            "summary": _extract_summary(content),
-            "tickers_mentioned": meta["tickers_mentioned"],
-            "tags": meta["tags"],
-            "date": _extract_date(content),
-        })
+        content = _fix_encoding(filepath.read_text(encoding="utf-8"))
+        records.append(
+            {
+                "title": meta["title"],
+                "report_type": meta["report_type"],
+                "content_md": content,
+                "summary": _extract_summary(content),
+                "tickers_mentioned": meta["tickers_mentioned"],
+                "tags": meta["tags"],
+                "date": _extract_date(content),
+            }
+        )
 
     if records:
         res = client.table("analysis_reports").insert(records).execute()
         print(f"  {len(res.data)} relatórios inseridos")
+
+
+def _extract_thesis_status(content: str) -> str:
+    """Extract thesis status (GREEN/YELLOW/RED) from deep dive content."""
+    # Content is already fix_encoding'd, so match proper UTF-8 emojis and text
+    if re.search(r"\U0001F7E2|Ativa e confirmada|Ativa", content, re.IGNORECASE):
+        return "GREEN"
+    if re.search(r"\U0001F534|ENCERRAMENTO", content, re.IGNORECASE):
+        return "RED"
+    if re.search(r"\U0001F7E1|Em [Rr]evis|Pendente|watchlist", content, re.IGNORECASE):
+        return "YELLOW"
+    return "YELLOW"
+
+
+def _extract_conviction(content: str) -> str:
+    """Extract conviction level (HIGH/MEDIUM/LOW) from deep dive content."""
+    raw = _extract_field_regex(content, r"[Cc]onvic\w+[:\s|]+\s*\**\s*([\w\-]+)")
+    if not raw:
+        return "MEDIUM"
+    raw_upper = raw.upper()
+    if "ALTA" in raw_upper or "HIGH" in raw_upper:
+        return "HIGH"
+    if "BAIXA" in raw_upper or "LOW" in raw_upper:
+        return "LOW"
+    return "MEDIUM"
+
+
+def _extract_moat_rating(content: str) -> str:
+    """Extract moat rating (STRONG/MODERATE/WEAK/NONE) from deep dive content."""
+    text = _extract_field_regex(content, r"[Mm]oat.*?(STRONG|Forte|MODERATE|Moderado|WEAK|Fraco|INEXISTENTE|NONE)")
+    if not text:
+        return "MODERATE"
+    text_upper = text.upper()
+    if "STRONG" in text_upper or "FORTE" in text_upper:
+        return "STRONG"
+    if "WEAK" in text_upper or "FRACO" in text_upper:
+        return "WEAK"
+    if "INEXISTENTE" in text_upper or "NONE" in text_upper:
+        return "NONE"
+    return "MODERATE"
+
+
+def _extract_moat_trend(content: str) -> str:
+    """Extract moat trend (WIDENING/STABLE/NARROWING) from deep dive content."""
+    text = _extract_field_regex(
+        content, r"[Dd]urabilidade.*?(Ampliando|WIDENING|Est[aá]vel|STABLE|Estreitando|NARROWING)"
+    )
+    if not text:
+        return "STABLE"
+    text_upper = text.upper()
+    if "AMPLIANDO" in text_upper or "WIDENING" in text_upper:
+        return "WIDENING"
+    if "ESTREITANDO" in text_upper or "NARROWING" in text_upper:
+        return "NARROWING"
+    return "STABLE"
+
+
+def _parse_brl_number(raw: str | None) -> float | None:
+    """Parse a Brazilian-format number string (e.g. '58,25' or '58.25') to float."""
+    if not raw:
+        return None
+    cleaned = raw.replace(".", "").replace(",", ".")
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def _extract_prices(content: str) -> dict:
+    """Extract target, bull, base, bear prices from deep dive content."""
+    target = _extract_field_regex(content, r"[Pp]re[çc]o.?alvo.*?(?:ponderado)?.*?R\$\s*([\d.,]+)")
+    bull = _extract_field_regex(content, r"[Bb]ull.*?R\$\s*([\d.,]+)")
+    base = _extract_field_regex(content, r"[Bb]ase.*?R\$\s*([\d.,]+)")
+    bear = _extract_field_regex(content, r"[Bb]ear.*?R\$\s*([\d.,]+)")
+    return {
+        "target_price": _parse_brl_number(target),
+        "bull_case_price": _parse_brl_number(bull),
+        "base_case_price": _parse_brl_number(base),
+        "bear_case_price": _parse_brl_number(bear),
+    }
+
+
+def _extract_usd_prices(content: str) -> dict:
+    """Extract USD-denominated prices for US tickers."""
+    target = _extract_field_regex(content, r"[Pp]re[çc]o.?alvo.*?(?:ponderado)?.*?\$\s*([\d.,]+)")
+    bull = _extract_field_regex(content, r"[Bb]ull.*?\$\s*([\d.,]+)")
+    base = _extract_field_regex(content, r"[Bb]ase.*?\$\s*([\d.,]+)")
+    bear = _extract_field_regex(content, r"[Bb]ear.*?\$\s*([\d.,]+)")
+    return {
+        "target_price": _parse_brl_number(target),
+        "bull_case_price": _parse_brl_number(bull),
+        "base_case_price": _parse_brl_number(base),
+        "bear_case_price": _parse_brl_number(bear),
+    }
+
+
+def _extract_kill_switches(content: str) -> list[str]:
+    """Extract kill switches as a list of strings from content."""
+    # Look for KILL SWITCH section with numbered items
+    section = re.search(r"KILL SWITCH.*?\n((?:\s*[-\d⚠️âš.*]+.+\n?)+)", content, re.IGNORECASE)
+    if not section:
+        return []
+    items = re.findall(r"(?:KILL SWITCH\s*\d*[:\s]*|KS-\d+[:\s|]*)(.*?)(?:\n|$)", section.group(0), re.IGNORECASE)
+    return [item.strip().strip("|").strip() for item in items if item.strip() and len(item.strip()) > 5]
+
+
+def _extract_growth_drivers(content: str) -> list[str]:
+    """Extract growth drivers as a list of strings from content."""
+    section = re.search(
+        r"(?:GROWTH DRIVERS|VETORES DE CRESCIMENTO)[^\n]*\n((?:\s*\d+\.\s+.+\n?)+)",
+        content,
+        re.IGNORECASE,
+    )
+    if not section:
+        return []
+    items = re.findall(r"\d+\.\s+\*\*(.+?)\*\*", section.group(0))
+    if not items:
+        items = re.findall(r"\d+\.\s+(.+?)(?:\n|$)", section.group(0))
+    return [item.strip() for item in items if item.strip()]
+
+
+US_TICKERS = {"TSM", "NVDA", "ASML", "MELI", "GOOGL", "SNPS", "MU"}
+
+
+def _build_thesis_record(ticker: str, content: str, position_id: str) -> dict:
+    """Build a thesis record dict from parsed deep dive content."""
+    prices = _extract_usd_prices(content) if ticker in US_TICKERS else _extract_prices(content)
+
+    roic_raw = _extract_field_regex(content, r"ROIC.*?([\d]+[.,]?\d*)%")
+    wacc_raw = _extract_field_regex(content, r"WACC.*?([\d]+[.,]?\d*)%")
+
+    kill_switches = _extract_kill_switches(content)
+    growth_drivers = _extract_growth_drivers(content)
+
+    if not prices["target_price"]:
+        print(f"    AVISO: {ticker} — target_price não extraído")
+    if not kill_switches:
+        print(f"    AVISO: {ticker} — kill_switches não extraídos")
+    if not growth_drivers:
+        print(f"    AVISO: {ticker} — growth_drivers não extraídos")
+
+    return {
+        "position_id": position_id,
+        "ticker": ticker,
+        "status": _extract_thesis_status(content),
+        "conviction": _extract_conviction(content),
+        "summary": _extract_summary(content),
+        "moat_rating": _extract_moat_rating(content),
+        "moat_trend": _extract_moat_trend(content),
+        "target_price": prices["target_price"],
+        "bull_case_price": prices["bull_case_price"],
+        "base_case_price": prices["base_case_price"],
+        "bear_case_price": prices["bear_case_price"],
+        "roic_current": _parse_brl_number(roic_raw),
+        "wacc_estimated": _parse_brl_number(wacc_raw),
+        "kill_switches": json.dumps(kill_switches),
+        "growth_drivers": json.dumps(growth_drivers),
+        "last_review": _extract_date(content),
+    }
+
+
+def seed_theses(client, ticker_to_id: dict[str, str]) -> None:
+    """Read deep dives and extract structured thesis data into theses table."""
+    deepdives_dir = KB_DIR / "deepdives"
+    suzb3_file = KB_DIR / "reports" / "tese_suzb3_atualizada.md"
+
+    # Collect tickers we'll process to make idempotent
+    tickers_to_seed = [f.stem for f in sorted(deepdives_dir.glob("*.md"))]
+    if suzb3_file.exists() and "SUZB3" not in tickers_to_seed:
+        tickers_to_seed.append("SUZB3")
+
+    # Delete existing theses for these tickers
+    for ticker in tickers_to_seed:
+        client.table("theses").delete().eq("ticker", ticker).execute()
+
+    records = []
+    for md_file in sorted(deepdives_dir.glob("*.md")):
+        ticker = md_file.stem
+        if ticker not in ticker_to_id:
+            print(f"    AVISO: {ticker} sem position_id, pulando tese")
+            continue
+        content = _fix_encoding(md_file.read_text(encoding="utf-8"))
+        records.append(_build_thesis_record(ticker, content, ticker_to_id[ticker]))
+
+    # SUZB3 from reports/ (PRD 4.6 nota)
+    if suzb3_file.exists() and "SUZB3" in ticker_to_id:
+        content = _fix_encoding(suzb3_file.read_text(encoding="utf-8"))
+        records.append(_build_thesis_record("SUZB3", content, ticker_to_id["SUZB3"]))
+
+    if records:
+        res = client.table("theses").insert(records).execute()
+        print(f"  {len(res.data)} teses inseridas")
 
 
 def main():
@@ -477,6 +705,9 @@ def main():
 
     print("\n4. Analysis Reports...")
     seed_reports(client)
+
+    print("\n5. Theses...")
+    seed_theses(client, ticker_to_id)
 
     print("\nSeed concluído!")
 

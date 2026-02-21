@@ -1,6 +1,6 @@
 # ROADMAP — Portfolio Cockpit
 
-> Última atualização: 2026-02-19 (sessão 4)
+> Última atualização: 2026-02-20 (sessão 5)
 > Spec completa: docs/specs/PRD.md
 
 ---
@@ -90,8 +90,38 @@
 
 ---
 
+## Sprint 5 — Chat Assessor & KB Refactor (v2.0)
+
+### Infraestrutura
+- [x] ✅ 2026/02/20 5.1 Dependências e configuração (openai, OpenRouter, OPENROUTER_MODELS)
+- [x] ✅ 2026/02/20 5.2 Módulo `data/llm.py` (cliente OpenRouter, streaming, vision, extração JSON)
+- [x] ✅ 2026/02/20 5.3 Módulo `data/chat_prompts.py` (system prompt, contexto dinâmico, detecção de intent)
+
+### Fix & Seed
+- [x] ✅ 2026/02/20 5.4 Estender `data/seed.py` para popular tabela `theses` + fix encoding mojibake
+- [x] ✅ 2026/02/20 5.5 Novos helpers em `data/db.py` (upsert_thesis, update_position_fields, summaries)
+
+### Chat Assessor (substitui Thesis Board)
+- [x] ✅ 2026/02/20 5.6 Página `pages/4_chat.py` (UI principal, modelo selector, sidebar kanban)
+- [x] ✅ 2026/02/20 5.7 Fluxo "salvar" no chat (extração JSON + persistência em theses/deep_dives)
+- [x] ✅ 2026/02/20 5.8 Atualização de posições via chat (texto, copy-paste, screenshot, vision)
+
+### Knowledge Base Refatorada
+- [x] ✅ 2026/02/20 5.9 Refatorar KB para layout de cards (remover tabs, timeline, upload form)
+- [x] ✅ 2026/02/20 5.10 Filtros na KB (busca, ticker, tipo, status, setor, conviction, período)
+- [x] ✅ 2026/02/20 5.11 Manter comparação entre versões no KB (botão por card)
+
+### Integração
+- [x] ✅ 2026/02/20 5.12 Atualizar `app.py` (Thesis Board → Assessor)
+- [x] ✅ 2026/02/20 5.13 Atualizar ROADMAP.md
+- [x] ✅ 2026/02/20 5.14 Verificação (lint, testes)
+
+---
+
 ## Notas
 
 - Spec completa com wireframes, modelo de dados e APIs: `docs/specs/PRD.md`
 - Framework de análise do portfólio: `knowledge_base/frameworks/framework_analise.md`
 - Deep dives existentes (18 arquivos): `knowledge_base/deepdives/`
+- Chat usa OpenRouter como gateway (9 modelos disponíveis)
+- Antigo `pages/4_thesis_board.py` substituído por `pages/4_chat.py`

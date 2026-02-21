@@ -9,3 +9,4 @@ quantstats>=0.0.62
 PyPortfolioOpt>=1.5.5
 python-bcb>=0.2.0
 streamlit-option-menu>=0.3.6
+openai>=1.30.0

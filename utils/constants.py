@@ -172,3 +172,19 @@ REPORT_TYPES = {
     "THEMATIC": "Temático",
     "PORTFOLIO_REVIEW": "Revisão de Portfólio",
 }
+
+# ============================================================
+# OpenRouter Models — Chat page (Sprint 5)
+# ============================================================
+
+OPENROUTER_MODELS = {
+    "Claude Sonnet 4.6 (~$2.25/sessão)": {"id": "anthropic/claude-sonnet-4-20250514", "supports_vision": True},
+    "Claude Haiku 4.5 (~$0.75)": {"id": "anthropic/claude-haiku-4-20250514", "supports_vision": True},
+    "Claude Opus 4.6 (~$3.75)": {"id": "anthropic/claude-opus-4-20250514", "supports_vision": True},
+    "Gemini 2.5 Flash (~$0.26)": {"id": "google/gemini-2.5-flash-preview", "supports_vision": True},
+    "Gemini 2.5 Pro (~$1.06)": {"id": "google/gemini-2.5-pro-preview", "supports_vision": True},
+    "GPT-4o (~$2.86)": {"id": "openai/gpt-4o", "supports_vision": True},
+    "GPT-4o-mini (~$0.17)": {"id": "openai/gpt-4o-mini", "supports_vision": True},
+    "DeepSeek R1 (~$0.92)": {"id": "deepseek/deepseek-r1", "supports_vision": False},
+    "Kimi K2": {"id": "moonshotai/kimi-k2", "supports_vision": False},
+}
