@@ -1,4 +1,4 @@
-"""Testes para data/llm.py — cliente OpenRouter, parsing JSON, vision helpers."""
+"""Testes para data/llm.py — cliente OpenRouter, parsing JSON, vision helpers, usage tracking."""
 
 from unittest.mock import MagicMock, patch
 
@@ -6,6 +6,7 @@ from data.llm import (
     _parse_json_from_response,
     _summarize_conversation,
     build_vision_content,
+    calculate_cost,
 )
 
 # ============================================================
@@ -154,3 +155,162 @@ class TestExtractStructuredData:
             "Extract data",
         )
         assert result is None
+
+
+# ============================================================
+# fetch_openrouter_credits
+# ============================================================
+
+
+class TestFetchOpenRouterCredits:
+    @patch("data.llm.requests.get")
+    @patch("data.llm.st.secrets", {"openrouter": {"api_key": "test-key"}})
+    def test_success(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"data": {"total_credits": 10.0, "total_usage": 3.5}}
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
+
+        from data.llm import fetch_openrouter_credits
+
+        result = fetch_openrouter_credits.__wrapped__()
+        assert result == {"total_credits": 10.0, "total_usage": 3.5}
+        mock_get.assert_called_once()
+
+    @patch("data.llm.requests.get", side_effect=Exception("Network error"))
+    @patch("data.llm.st.secrets", {"openrouter": {"api_key": "test-key"}})
+    def test_error_returns_none(self, mock_get):
+        from data.llm import fetch_openrouter_credits
+
+        result = fetch_openrouter_credits.__wrapped__()
+        assert result is None
+
+
+# ============================================================
+# calculate_cost
+# ============================================================
+
+
+class TestCalculateCost:
+    def test_known_model(self):
+        # Claude Sonnet: input=3.0/1M, output=15.0/1M
+        cost = calculate_cost("anthropic/claude-sonnet-4-20250514", 1000, 500)
+        expected = (1000 / 1_000_000) * 3.0 + (500 / 1_000_000) * 15.0
+        assert abs(cost - expected) < 1e-10
+
+    def test_unknown_model_returns_zero(self):
+        cost = calculate_cost("unknown/model", 1000, 500)
+        assert cost == 0.0
+
+    def test_zero_tokens(self):
+        cost = calculate_cost("anthropic/claude-sonnet-4-20250514", 0, 0)
+        assert cost == 0.0
+
+
+# ============================================================
+# track_usage
+# ============================================================
+
+
+class TestTrackUsage:
+    @patch("data.llm.st.session_state", {})
+    def test_first_call_initializes(self):
+        from data.llm import track_usage
+
+        track_usage("anthropic/claude-sonnet-4-20250514", 100, 50)
+        from data.llm import st
+
+        usage = st.session_state["llm_usage"]
+        assert usage["total_tokens"] == 150
+        assert usage["total_prompt_tokens"] == 100
+        assert usage["total_completion_tokens"] == 50
+        assert usage["request_count"] == 1
+        assert usage["last_request_tokens"] == 150
+        assert usage["total_cost_usd"] > 0
+
+    @patch("data.llm.st.session_state", {})
+    def test_accumulates(self):
+        from data.llm import track_usage
+
+        track_usage("anthropic/claude-sonnet-4-20250514", 100, 50)
+        track_usage("anthropic/claude-sonnet-4-20250514", 200, 100)
+        from data.llm import st
+
+        usage = st.session_state["llm_usage"]
+        assert usage["total_tokens"] == 450
+        assert usage["total_prompt_tokens"] == 300
+        assert usage["total_completion_tokens"] == 150
+        assert usage["request_count"] == 2
+        assert usage["last_request_tokens"] == 300
+
+
+# ============================================================
+# stream_chat_response captures usage
+# ============================================================
+
+
+class TestStreamCapturesUsage:
+    @patch("data.llm.st.session_state", {})
+    @patch("data.llm.get_openrouter_client")
+    def test_captures_usage_from_last_chunk(self, mock_get_client):
+        # Build mock chunks: text chunk + final usage chunk
+        text_chunk = MagicMock()
+        text_chunk.choices = [MagicMock()]
+        text_chunk.choices[0].delta.content = "Hello"
+        text_chunk.usage = None
+
+        usage_chunk = MagicMock()
+        usage_chunk.choices = []
+        usage_chunk.usage = MagicMock()
+        usage_chunk.usage.prompt_tokens = 50
+        usage_chunk.usage.completion_tokens = 20
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = iter([text_chunk, usage_chunk])
+        mock_get_client.return_value = mock_client
+
+        from data.llm import stream_chat_response
+
+        chunks = list(stream_chat_response([{"role": "user", "content": "Hi"}], "Claude Sonnet 4.6 (~$2.25/sess\u00e3o)"))
+        assert "Hello" in chunks
+
+        from data.llm import st
+
+        usage = st.session_state.get("llm_usage", {})
+        assert usage["total_tokens"] == 70
+        assert usage["request_count"] == 1
+
+
+# ============================================================
+# call_chat_response captures usage
+# ============================================================
+
+
+class TestCallCapturesUsage:
+    @patch("data.llm.st.session_state", {})
+    @patch("data.llm.get_openrouter_client")
+    def test_captures_usage(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "Resposta"
+        mock_response.usage = MagicMock()
+        mock_response.usage.prompt_tokens = 80
+        mock_response.usage.completion_tokens = 40
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_get_client.return_value = mock_client
+
+        from data.llm import call_chat_response
+
+        result = call_chat_response(
+            [{"role": "user", "content": "Hi"}],
+            "Claude Sonnet 4.6 (~$2.25/sess\u00e3o)",
+        )
+        assert result == "Resposta"
+
+        from data.llm import st
+
+        usage = st.session_state.get("llm_usage", {})
+        assert usage["total_tokens"] == 120
+        assert usage["request_count"] == 1
