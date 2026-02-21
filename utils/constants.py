@@ -257,3 +257,16 @@ OPENROUTER_MODELS = {
     "DeepSeek R1 (~$0.92)": {"id": "deepseek/deepseek-r1", "supports_vision": False},
     "Kimi K2": {"id": "moonshotai/kimi-k2", "supports_vision": False},
 }
+
+# Custo por 1M tokens (USD) — fonte: openrouter.ai/models
+OPENROUTER_PRICING = {
+    "anthropic/claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
+    "anthropic/claude-haiku-4-20250514": {"input": 0.80, "output": 4.0},
+    "anthropic/claude-opus-4-20250514": {"input": 15.0, "output": 75.0},
+    "google/gemini-2.5-flash-preview": {"input": 0.15, "output": 0.60},
+    "google/gemini-2.5-pro-preview": {"input": 1.25, "output": 10.0},
+    "openai/gpt-4o": {"input": 2.50, "output": 10.0},
+    "openai/gpt-4o-mini": {"input": 0.15, "output": 0.60},
+    "deepseek/deepseek-r1": {"input": 0.55, "output": 2.19},
+    "moonshotai/kimi-k2": {"input": 0.60, "output": 2.00},
+}

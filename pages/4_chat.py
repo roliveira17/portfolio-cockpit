@@ -26,6 +26,7 @@ from data.llm import (
     build_vision_content,
     encode_image_to_base64,
     extract_structured_data,
+    fetch_openrouter_credits,
     stream_chat_response,
 )
 from utils.constants import OPENROUTER_MODELS, THESIS_STATUS
@@ -214,7 +215,39 @@ with st.sidebar:
         st.session_state["chat_messages"] = []
         st.session_state["pending_save"] = None
         st.session_state["pending_position_update"] = None
+        st.session_state.pop("llm_usage", None)
         st.rerun()
+
+    # ── Consumo API ──
+    st.markdown("---")
+    st.markdown("### Consumo API")
+    usage = st.session_state.get("llm_usage", {})
+    total_tokens = usage.get("total_tokens", 0)
+    request_count = usage.get("request_count", 0)
+
+    col1, col2 = st.columns(2)
+    if total_tokens >= 1_000_000:
+        col1.metric("Tokens", f"{total_tokens / 1_000_000:.1f}M")
+    elif total_tokens >= 1_000:
+        col1.metric("Tokens", f"{total_tokens / 1_000:.1f}K")
+    else:
+        col1.metric("Tokens", str(total_tokens))
+    col2.metric("Requests", str(request_count))
+
+    total_cost = usage.get("total_cost_usd", 0.0)
+    st.metric("Custo sessao", f"${total_cost:.4f}")
+
+    try:
+        credits = fetch_openrouter_credits()
+        if credits:
+            total_credits = credits["total_credits"]
+            total_usage = credits["total_usage"]
+            remaining = total_credits - total_usage
+            st.metric("Saldo conta", f"${remaining:.2f}")
+            if total_credits > 0:
+                st.progress(min(remaining / total_credits, 1.0))
+    except Exception:
+        pass
 
 # ============================================================
 # Main area: Model selector + image upload

@@ -5,10 +5,11 @@ import json
 import logging
 from collections.abc import Generator
 
+import requests
 import streamlit as st
 from openai import OpenAI
 
-from utils.constants import OPENROUTER_MODELS
+from utils.constants import OPENROUTER_MODELS, OPENROUTER_PRICING
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,61 @@ def get_openrouter_client() -> OpenAI:
     )
 
 
+@st.cache_data(ttl=60)
+def fetch_openrouter_credits() -> dict | None:
+    """Fetch account credits from OpenRouter. Returns {total_credits, total_usage} or None."""
+    try:
+        api_key = st.secrets["openrouter"]["api_key"]
+        resp = requests.get(
+            "https://openrouter.ai/api/v1/credits",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json().get("data", resp.json())
+        return {
+            "total_credits": float(data.get("total_credits", 0)),
+            "total_usage": float(data.get("total_usage", 0)),
+        }
+    except Exception as e:
+        logger.warning(f"OpenRouter credits fetch error: {e}")
+        return None
+
+
+def calculate_cost(model_id: str, prompt_tokens: int, completion_tokens: int) -> float:
+    """Calculate cost in USD based on model pricing. Returns 0 for unknown models."""
+    pricing = OPENROUTER_PRICING.get(model_id)
+    if not pricing:
+        return 0.0
+    input_cost = (prompt_tokens / 1_000_000) * pricing["input"]
+    output_cost = (completion_tokens / 1_000_000) * pricing["output"]
+    return input_cost + output_cost
+
+
+def track_usage(model_id: str, prompt_tokens: int, completion_tokens: int) -> None:
+    """Accumulate usage stats in session_state['llm_usage']."""
+    if "llm_usage" not in st.session_state:
+        st.session_state["llm_usage"] = {
+            "total_tokens": 0,
+            "total_prompt_tokens": 0,
+            "total_completion_tokens": 0,
+            "total_cost_usd": 0.0,
+            "request_count": 0,
+            "last_request_tokens": 0,
+            "last_request_cost": 0.0,
+        }
+    cost = calculate_cost(model_id, prompt_tokens, completion_tokens)
+    total = prompt_tokens + completion_tokens
+    usage = st.session_state["llm_usage"]
+    usage["total_tokens"] += total
+    usage["total_prompt_tokens"] += prompt_tokens
+    usage["total_completion_tokens"] += completion_tokens
+    usage["total_cost_usd"] += cost
+    usage["request_count"] += 1
+    usage["last_request_tokens"] = total
+    usage["last_request_cost"] = cost
+
+
 def stream_chat_response(messages: list[dict], model_key: str) -> Generator[str, None, None]:
     """Stream chat response from OpenRouter. Yields text chunks."""
     model_id = OPENROUTER_MODELS[model_key]["id"]
@@ -31,10 +87,18 @@ def stream_chat_response(messages: list[dict], model_key: str) -> Generator[str,
             messages=messages,
             stream=True,
             max_tokens=4096,
+            stream_options={"include_usage": True},
         )
+        prompt_tokens = 0
+        completion_tokens = 0
         for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
+            if hasattr(chunk, "usage") and chunk.usage is not None:
+                prompt_tokens = getattr(chunk.usage, "prompt_tokens", 0) or 0
+                completion_tokens = getattr(chunk.usage, "completion_tokens", 0) or 0
+        if prompt_tokens or completion_tokens:
+            track_usage(model_id, prompt_tokens, completion_tokens)
     except Exception as e:
         logger.warning(f"OpenRouter stream error: {e}")
         yield f"\n\n**Erro na API:** {e}"
@@ -50,6 +114,10 @@ def call_chat_response(messages: list[dict], model_key: str) -> str:
             messages=messages,
             max_tokens=4096,
         )
+        if hasattr(response, "usage") and response.usage is not None:
+            prompt_tokens = getattr(response.usage, "prompt_tokens", 0) or 0
+            completion_tokens = getattr(response.usage, "completion_tokens", 0) or 0
+            track_usage(model_id, prompt_tokens, completion_tokens)
         return response.choices[0].message.content or ""
     except Exception as e:
         logger.warning(f"OpenRouter call error: {e}")
