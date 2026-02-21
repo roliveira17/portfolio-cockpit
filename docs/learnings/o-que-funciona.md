@@ -71,3 +71,27 @@
 **Execução sequencial vs subagents para código interdependente:**
 - Módulos com imports cruzados (risk←performance, simulator←risk) devem ser escritos sequencialmente.
 - Subagents são úteis apenas para exploração/planejamento, não para geração de código acoplado.
+
+---
+
+## 2026-02-20 — Sessão 5: Sprint 5 (Chat Assessor + KB refactor)
+
+**OpenRouter como gateway de LLMs:**
+- Usar OpenRouter com o SDK `openai` (mesma interface) permite trocar modelos sem mudar código. Basta `base_url="https://openrouter.ai/api/v1"`.
+- Dict `OPENROUTER_MODELS` em constants.py com `id`, `supports_vision` e custo estimado por sessão facilita UI de seleção.
+
+**Subagents em paralelo para tasks independentes:**
+- Tasks sem dependência entre si (seed theses, DB helpers, KB refactor) rodam bem em paralelo como background agents.
+- Um único agent pode cobrir múltiplas tasks se o escopo é coeso (ex: KB refactor agent fez 5.9 + 5.10 + 5.11).
+
+**Streaming com `st.write_stream()`:**
+- O generator retornado por `stream_chat_response()` funciona direto com `st.write_stream()` — Streamlit renderiza chunk a chunk.
+- Não precisa acumular texto manualmente; `st.write_stream()` retorna o texto completo ao final.
+
+**Helpers definidos antes do uso em Streamlit pages:**
+- Em arquivos Streamlit com `st.chat_input`, `st.button`, etc., funções helper devem ser definidas ANTES do código de UI que as referencia. Caso contrário, o Streamlit executa top-to-bottom e encontra `NameError`.
+
+**Extração de dados estruturados via LLM (two-step):**
+- Passo 1: detectar intent via regex (barato, sem API call)
+- Passo 2: se intent detectado, chamar LLM com prompt de extração JSON
+- Prompt de extração com schema JSON explícito + "retorne null se insuficiente" evita falsos positivos.

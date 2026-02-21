@@ -30,3 +30,29 @@ Configurações → Privacidade e Segurança → Segurança do Windows → Contr
 **Causa:** O Streamlit OAuth App no GitHub só tinha permissão "Access public repositories".
 
 **Solução:** Tornar o repo público, ou revogar/re-autorizar o Streamlit App com permissão para repos privados.
+
+---
+
+## 2026-02-20 — Encoding mojibake em deep dives do Supabase
+
+**Problema:** Textos inseridos no Supabase com encoding duplo (UTF-8 → Latin-1 → UTF-8) resultam em mojibake: `Ã£` em vez de `ã`, `Ã§` em vez de `ç`.
+
+**Causa:** O arquivo .md é UTF-8, mas ao ler/inserir pode ocorrer re-encoding dependendo do locale do sistema (Windows cp1252).
+
+**Solução:** Helper `_fix_encoding(text)` que tenta `text.encode('latin-1').decode('utf-8')`. Se falhar (já estava correto), retorna o original. Aplicar tanto no seed quanto na renderização da KB.
+
+---
+
+## 2026-02-20 — requirements.txt precisa de TODAS as dependências para Streamlit Cloud
+
+**Problema:** Ao adicionar `openai` como dependência no `pyproject.toml`, o deploy no Streamlit Cloud não a instala porque Streamlit Cloud lê `requirements.txt`, não `pyproject.toml`.
+
+**Solução:** Sempre que adicionar dependência ao `pyproject.toml`, lembrar de adicionar também ao `requirements.txt`. São dois pontos de verdade — um para dev local (uv), outro para deploy (Streamlit Cloud).
+
+---
+
+## 2026-02-20 — Windows cp1252 ao parsear Python com ast.parse
+
+**Problema:** `ast.parse(open('file.py').read())` falha no Windows com `UnicodeDecodeError` porque `open()` usa cp1252 por default, mas o arquivo tem UTF-8 com caracteres acentuados.
+
+**Solução:** Sempre especificar encoding: `open('file.py', encoding='utf-8').read()`.
