@@ -12,9 +12,7 @@ class TestFetchGlobalIndices:
     @patch("data.global_markets.st")
     def test_returns_all_regions(self, mock_st, mock_ticker):
         mock_info = MagicMock()
-        mock_info.get.side_effect = lambda k: {
-            "lastPrice": 6100.0, "previousClose": 6050.0
-        }.get(k)
+        mock_info.get.side_effect = lambda k: {"lastPrice": 6100.0, "previousClose": 6050.0}.get(k)
         mock_ticker.return_value.fast_info = mock_info
 
         from data.global_markets import fetch_global_indices
@@ -29,9 +27,7 @@ class TestFetchGlobalIndices:
     @patch("data.global_markets.st")
     def test_index_has_required_fields(self, mock_st, mock_ticker):
         mock_info = MagicMock()
-        mock_info.get.side_effect = lambda k: {
-            "lastPrice": 6100.0, "previousClose": 6050.0
-        }.get(k)
+        mock_info.get.side_effect = lambda k: {"lastPrice": 6100.0, "previousClose": 6050.0}.get(k)
         mock_ticker.return_value.fast_info = mock_info
 
         from data.global_markets import fetch_global_indices
@@ -66,9 +62,7 @@ class TestFetchCommodities:
     @patch("data.global_markets.st")
     def test_returns_list(self, mock_st, mock_ticker):
         mock_info = MagicMock()
-        mock_info.get.side_effect = lambda k: {
-            "lastPrice": 74.2, "previousClose": 75.0
-        }.get(k)
+        mock_info.get.side_effect = lambda k: {"lastPrice": 74.2, "previousClose": 75.0}.get(k)
         mock_ticker.return_value.fast_info = mock_info
 
         from data.global_markets import fetch_commodities

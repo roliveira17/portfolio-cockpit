@@ -5,8 +5,8 @@ from datetime import date
 import streamlit as st
 
 from analytics.portfolio import build_portfolio_df
-from data.db import get_positions, get_theses, insert_row
-from data.market_data import fetch_all_quotes, fetch_batch_price_history
+from data.db import get_position_by_ticker, get_positions, get_theses, insert_row, update_row
+from data.market_data import fetch_all_quotes, fetch_batch_price_history, fetch_weekly_changes
 from utils.cache_info import record_fetch_time, show_freshness_badge
 from utils.constants import TICKERS_BR, TICKERS_US
 from utils.formatting import fmt_brl, fmt_pct, fmt_usd
@@ -57,8 +57,11 @@ def _show_analyze_button(row, theses_map: dict) -> None:
             ]
 
             model_key = next(
-                (k for k in OPENROUTER_MODELS if "Flash" in k or "mini" in k or "Haiku" in k),
-                list(OPENROUTER_MODELS.keys())[0],
+                (k for k in OPENROUTER_MODELS if "Flash" in k or "mini" in k),
+                next(
+                    (k for k in OPENROUTER_MODELS if "Haiku" in k),
+                    list(OPENROUTER_MODELS.keys())[0],
+                ),
             )
 
             with st.spinner("Analisando..."):
@@ -86,9 +89,19 @@ if price_hist is not None:
         spark_map[col] = vals[-20:] if len(vals) > 20 else vals
 df["spark"] = df["ticker"].apply(lambda t: spark_map.get(t, []))
 
+# --- Variação semanal ---
+weekly = fetch_weekly_changes()
+if weekly:
+    df["weekly_change_pct"] = df["ticker"].map(weekly)
+else:
+    df["weekly_change_pct"] = None
+
 # --- Theses para filtro de revisão vencida ---
 theses = get_theses() or []
 theses_by_ticker = {t["ticker"]: t for t in theses}
+
+# --- Target price das teses ---
+df["target_price"] = df["ticker"].map(lambda t: theses_by_ticker.get(t, {}).get("target_price"))
 
 # ============================================================
 # Filtros
@@ -153,13 +166,14 @@ display_cols = [
     "company_name",
     "sector",
     "weight",
-    "target_weight",
-    "weight_gap",
     "current_price",
     "avg_price",
     "pnl_pct",
     "change_pct",
+    "weekly_change_pct",
     "spark",
+    "target_weight",
+    "target_price",
 ]
 display_df = filtered[display_cols].copy()
 
@@ -170,13 +184,14 @@ st.dataframe(
         "company_name": st.column_config.TextColumn("Empresa"),
         "sector": st.column_config.TextColumn("Setor"),
         "weight": st.column_config.NumberColumn("Peso %", format="%.1f"),
-        "target_weight": st.column_config.NumberColumn("Target %", format="%.1f"),
-        "weight_gap": st.column_config.NumberColumn("Gap %", format="%+.1f"),
         "current_price": st.column_config.NumberColumn("Preço", format="%.2f"),
         "avg_price": st.column_config.NumberColumn("PM", format="%.2f"),
         "pnl_pct": st.column_config.NumberColumn("P&L %", format="%+.1f"),
         "change_pct": st.column_config.NumberColumn("Dia %", format="%+.2f"),
+        "weekly_change_pct": st.column_config.NumberColumn("Sem %", format="%+.1f"),
         "spark": st.column_config.LineChartColumn("30d", width="small"),
+        "target_weight": st.column_config.NumberColumn("Target %", format="%.1f"),
+        "target_price": st.column_config.NumberColumn("Alvo", format="%.2f"),
     },
     use_container_width=True,
     hide_index=True,
@@ -274,5 +289,35 @@ with st.expander("➕ Nova Transação"):
 # ============================================================
 
 st.markdown("---")
-csv = filtered.drop(columns=["spark"], errors="ignore").to_csv(index=False)
-st.download_button("📥 Exportar CSV", csv, "positions.csv", "text/csv")
+col_exp, col_imp = st.columns(2)
+with col_exp:
+    csv = filtered.drop(columns=["spark"], errors="ignore").to_csv(index=False)
+    st.download_button("📥 Exportar CSV", csv, "positions.csv", "text/csv")
+with col_imp:
+    uploaded = st.file_uploader("📤 Importar CSV", type=["csv"], key="import_csv")
+    if uploaded is not None:
+        import pandas as pd
+
+        try:
+            import_df = pd.read_csv(uploaded)
+            required = {"ticker", "quantity", "avg_price"}
+            if not required.issubset(set(import_df.columns)):
+                st.error(f"CSV deve conter colunas: {', '.join(required)}")
+            else:
+                updated_count = 0
+                for _, imp_row in import_df.iterrows():
+                    pos = get_position_by_ticker(str(imp_row["ticker"]))
+                    if pos:
+                        update_data = {
+                            "quantity": float(imp_row["quantity"]),
+                            "avg_price": float(imp_row["avg_price"]),
+                            "total_invested": float(imp_row["quantity"]) * float(imp_row["avg_price"]),
+                        }
+                        update_row("positions", pos["id"], update_data)
+                        updated_count += 1
+                if updated_count:
+                    st.success(f"{updated_count} posições atualizadas. Recarregue a página.")
+                else:
+                    st.warning("Nenhuma posição encontrada para atualizar.")
+        except Exception as e:
+            st.error(f"Erro ao importar: {e}")

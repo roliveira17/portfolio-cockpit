@@ -33,16 +33,19 @@ class TestFetchBrYieldCurve:
                 import importlib
 
                 import data.yield_curve
+
                 importlib.reload(data.yield_curve)
                 if ref_date:
                     return data.yield_curve.fetch_br_yield_curve.__wrapped__(ref_date)
                 return data.yield_curve.fetch_br_yield_curve.__wrapped__()
 
     def test_success(self):
-        mock_df = pd.DataFrame({
-            "dias_corridos": [21, 63, 126, 252, 504],
-            "taxa": [13.50, 14.00, 14.25, 14.50, 14.20],
-        })
+        mock_df = pd.DataFrame(
+            {
+                "dias_corridos": [21, 63, 126, 252, 504],
+                "taxa": [13.50, 14.00, 14.25, 14.50, 14.20],
+            }
+        )
         result = self._call_with_mock(mock_df, "21/02/2026")
 
         assert result is not None
@@ -60,10 +63,12 @@ class TestFetchBrYieldCurve:
         assert result is None
 
     def test_anos_calculated_correctly(self):
-        mock_df = pd.DataFrame({
-            "dias_corridos": [252],
-            "taxa": [14.50],
-        })
+        mock_df = pd.DataFrame(
+            {
+                "dias_corridos": [252],
+                "taxa": [14.50],
+            }
+        )
         result = self._call_with_mock(mock_df)
 
         assert result is not None
@@ -71,10 +76,12 @@ class TestFetchBrYieldCurve:
 
     def test_column_normalization(self):
         """Test that different column names from pyettj are normalized."""
-        mock_df = pd.DataFrame({
-            "Dias Corridos": [21, 63],
-            "Taxa (% a.a.)": [13.50, 14.00],
-        })
+        mock_df = pd.DataFrame(
+            {
+                "Dias Corridos": [21, 63],
+                "Taxa (% a.a.)": [13.50, 14.00],
+            }
+        )
         result = self._call_with_mock(mock_df)
 
         assert result is not None
@@ -97,6 +104,7 @@ class TestFetchUsTreasuryCurve:
         mock_get.return_value = mock_resp
 
         from data.yield_curve import fetch_us_treasury_curve
+
         result = fetch_us_treasury_curve.__wrapped__(2026)
 
         assert result is not None
@@ -114,6 +122,7 @@ class TestFetchUsTreasuryCurve:
         mock_get.return_value = mock_resp
 
         from data.yield_curve import fetch_us_treasury_curve
+
         result = fetch_us_treasury_curve.__wrapped__(2026)
 
         row_10y = result[result["label"] == "10A"]
@@ -123,6 +132,7 @@ class TestFetchUsTreasuryCurve:
     @patch("data.yield_curve.st")
     def test_failure_returns_none(self, mock_st, mock_get):
         from data.yield_curve import fetch_us_treasury_curve
+
         result = fetch_us_treasury_curve.__wrapped__(2026)
         assert result is None
 
@@ -135,5 +145,6 @@ class TestFetchUsTreasuryCurve:
         mock_get.return_value = mock_resp
 
         from data.yield_curve import fetch_us_treasury_curve
+
         result = fetch_us_treasury_curve.__wrapped__(2026)
         assert result is None
