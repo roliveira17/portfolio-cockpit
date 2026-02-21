@@ -1,6 +1,6 @@
 # ROADMAP — Portfolio Cockpit
 
-> Última atualização: 2026-02-21 (sessão 6)
+> Última atualização: 2026-02-21 (sessão 7 — QA)
 > Spec completa: docs/specs/PRD.md
 
 ---
@@ -144,6 +144,33 @@
 - [x] ✅ 2026/02/21 6.12 Registrar página Markets no `app.py`
 - [x] ✅ 2026/02/21 6.13 Testes (`tests/test_markets.py` — 11 testes: parse XML, estrutura de constantes, cache_info)
 - [x] ✅ 2026/02/21 6.14 Atualizar ROADMAP.md e verificação (lint, testes, deploy)
+
+---
+
+## Sprint 7 — QA Test Automation
+
+> Expandir cobertura de testes de 49 para 311 testes cobrindo todas as camadas.
+
+### Pure Functions (Equipe A)
+- [x] ✅ 2026/02/21 7.1 `tests/test_formatting.py` (40 testes — fmt_brl, fmt_usd, fmt_pct, fmt_number, fmt_date, fmt_delta)
+- [x] ✅ 2026/02/21 7.2 `tests/test_currency.py` (11 testes — get_ptax, brl_to_usd, usd_to_brl, roundtrip)
+- [x] ✅ 2026/02/21 7.3 `tests/test_seed_extraction.py` (55 testes — 15 funções de extração puras do seed.py)
+- [x] ✅ 2026/02/21 7.4 `tests/test_chat_prompts.py` (32 testes — prompts, contexto, detecção de intent)
+- [x] ✅ 2026/02/21 7.5 `tests/test_portfolio_extended.py` (18 testes — build_portfolio_df, patrimônio, P&L, setor, fator, movers)
+
+### API Mocks (Equipe B)
+- [x] ✅ 2026/02/21 7.6 `tests/test_market_data.py` (17 testes — brapi, yfinance, yfinance_br, fetch_all_quotes)
+- [x] ✅ 2026/02/21 7.7 `tests/test_macro_data.py` (10 testes — BCB, yfinance macro, fetch_macro_snapshot)
+- [x] ✅ 2026/02/21 7.8 `tests/test_yield_curve.py` (9 testes — pyettj BR, Treasury XML US)
+- [x] ✅ 2026/02/21 7.9 `tests/test_global_markets.py` (5 testes — índices globais, commodities)
+- [x] ✅ 2026/02/21 7.10 `tests/test_llm.py` (14 testes — OpenRouter client, parse JSON, vision)
+
+### DB Mocks (Equipe C)
+- [x] ✅ 2026/02/21 7.11 `tests/test_db.py` (51 testes — 20+ funções CRUD Supabase com chainable mocks)
+
+### Verificação
+- [x] ✅ 2026/02/21 7.12 Atualizar `tests/conftest.py` com fixtures compartilhadas (brapi, treasury XML, supabase, positions, quotes)
+- [x] ✅ 2026/02/21 7.13 311 testes passando em ~1.6s, ruff lint limpo
 
 ---
 
