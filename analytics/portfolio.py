@@ -32,6 +32,40 @@ def build_portfolio_df(positions: list[dict], quotes: dict[str, dict]) -> pd.Dat
         dividends = float(pos.get("dividends_received", 0))
         target_weight = float(pos.get("target_weight", 0))
 
+        # Caixa e Fundos: sem cotação de mercado, usar total_invested como valor
+        sector = pos.get("sector", "")
+        if current_price is None and sector in ("caixa", "fundos"):
+            current_value_original = total_invested
+            current_value_brl = total_invested
+            pnl_abs = 0.0
+            pnl_pct = 0.0
+            pnl_with_div_pct = 0.0
+            rows.append(
+                {
+                    "ticker": ticker,
+                    "company_name": pos.get("company_name", ""),
+                    "sector": sector,
+                    "market": pos.get("market", ""),
+                    "currency": pos.get("currency", ""),
+                    "analyst": pos.get("analyst", ""),
+                    "quantity": quantity,
+                    "avg_price": avg_price,
+                    "total_invested": total_invested,
+                    "dividends_received": dividends,
+                    "current_price": current_price,
+                    "current_value_original": current_value_original,
+                    "current_value_brl": current_value_brl,
+                    "pnl_abs": pnl_abs,
+                    "pnl_pct": pnl_pct,
+                    "pnl_with_div_pct": pnl_with_div_pct,
+                    "weight": 0.0,
+                    "target_weight": target_weight,
+                    "weight_gap": 0.0,
+                    "change_pct": change_pct,
+                }
+            )
+            continue
+
         # Valor atual na moeda original
         current_value_original = quantity * current_price if current_price else None
 
@@ -100,7 +134,7 @@ def calc_total_pnl(df: pd.DataFrame) -> tuple[float, float]:
     for _, row in df.iterrows():
         invested = row["total_invested"]
         value = row["current_value_original"]
-        if value is None:
+        if value is None or pd.isna(value):
             continue
         if row["currency"] == "USD":
             invested = usd_to_brl(invested)
@@ -148,15 +182,17 @@ def calc_factor_exposure(df: pd.DataFrame) -> dict[str, float]:
     return exposures
 
 
-def calc_top_movers(df: pd.DataFrame, n: int = 3) -> tuple[pd.DataFrame, pd.DataFrame]:
+def calc_top_movers(df: pd.DataFrame, n: int = 5, change_col: str = "change_pct") -> tuple[pd.DataFrame, pd.DataFrame]:
     """Retorna (top_gainers, top_losers) DataFrames com n posições cada."""
-    valid = df[df["change_pct"].notna()].copy()
-    if valid.empty:
-        empty = pd.DataFrame(columns=["ticker", "change_pct"])
+    if change_col not in df.columns:
+        empty = pd.DataFrame(columns=["ticker", change_col, "company_name"])
         return empty, empty
-    sorted_df = valid.sort_values("change_pct", ascending=False)
-    gainers = sorted_df.head(n)[["ticker", "change_pct", "company_name"]].reset_index(drop=True)
-    losers = (
-        sorted_df.tail(n)[["ticker", "change_pct", "company_name"]].sort_values("change_pct").reset_index(drop=True)
-    )
+    valid = df[df[change_col].notna()].copy()
+    if valid.empty:
+        empty = pd.DataFrame(columns=["ticker", change_col, "company_name"])
+        return empty, empty
+    sorted_df = valid.sort_values(change_col, ascending=False)
+    cols = ["ticker", change_col, "company_name"]
+    gainers = sorted_df.head(n)[cols].reset_index(drop=True)
+    losers = sorted_df.tail(n)[cols].sort_values(change_col).reset_index(drop=True)
     return gainers, losers
