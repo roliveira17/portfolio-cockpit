@@ -122,6 +122,55 @@ def fetch_all_quotes() -> dict[str, dict]:
 
 
 # ============================================================
+# Variação semanal (5 dias úteis)
+# ============================================================
+
+
+@st.cache_data(ttl=CACHE_TTL_QUOTES)
+def fetch_weekly_changes() -> dict[str, float]:
+    """Calcula variação % nos últimos 5 dias úteis para todos os tickers.
+
+    Retorna {ticker: change_pct} com tickers originais (sem .SA).
+    """
+    all_yf = [f"{t}.SA" for t in TICKERS_BR] + list(TICKERS_US)
+    rename_map = {f"{t}.SA": t for t in TICKERS_BR}
+    rename_map.update({t: t for t in TICKERS_US})
+
+    try:
+        data = yf.download(all_yf, period="5d", progress=False)
+        if data.empty:
+            return {}
+
+        import pandas as pd
+
+        has_close = "Close" in data.columns or (
+            hasattr(data.columns, "get_level_values") and "Close" in data.columns.get_level_values(0)
+        )
+        if not has_close:
+            return {}
+
+        closes = data["Close"]
+        if isinstance(closes, pd.Series):
+            closes = closes.to_frame(name=all_yf[0])
+
+        results = {}
+        for yf_ticker in all_yf:
+            original = rename_map.get(yf_ticker, yf_ticker)
+            if yf_ticker not in closes.columns:
+                continue
+            col = closes[yf_ticker].dropna()
+            if len(col) < 2:
+                continue
+            first, last = col.iloc[0], col.iloc[-1]
+            if first and first > 0:
+                results[original] = round((last - first) / first * 100, 2)
+        return results
+    except Exception:
+        logger.warning("fetch_weekly_changes: falhou")
+        return {}
+
+
+# ============================================================
 # Histórico de preços (para gráficos e correlação)
 # ============================================================
 

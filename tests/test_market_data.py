@@ -147,9 +147,7 @@ class TestFetchYfinanceBr:
         mock_yf.return_value = {"INBR32": {"price": 46.0, "source": "yfinance"}}
         _fetch_yfinance_br(["INBR32"])
         # Verify it was called with .SA suffix and original tickers
-        mock_yf.assert_called_once_with(
-            ["INBR32.SA"], original_tickers=["INBR32"], currency="BRL"
-        )
+        mock_yf.assert_called_once_with(["INBR32.SA"], original_tickers=["INBR32"], currency="BRL")
 
 
 # ============================================================

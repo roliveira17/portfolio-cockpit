@@ -68,12 +68,37 @@ class TestBuildPortfolioDf:
         assert df.iloc[0]["current_value_brl"] == pytest.approx(2000.0 * 5.75)
 
     @patch("analytics.portfolio.usd_to_brl", return_value=None)
-    def test_missing_quote(self, mock_usd):
+    def test_missing_quote_caixa_uses_invested(self, mock_usd):
+        """Caixa/fundos sem cotacao usam total_invested como valor atual, P&L=0."""
         positions = [
             {
                 "ticker": "XXX",
-                "company_name": "Sem Cotação",
+                "company_name": "Caixa Test",
                 "sector": "caixa",
+                "market": "BR",
+                "currency": "BRL",
+                "analyst": "",
+                "quantity": 100,
+                "avg_price": 10.0,
+                "total_invested": 1000.0,
+                "dividends_received": 0,
+                "target_weight": 5.0,
+            }
+        ]
+        quotes = {}
+        df = build_portfolio_df(positions, quotes)
+        assert df.iloc[0]["current_price"] is None
+        assert df.iloc[0]["current_value_brl"] == 1000.0
+        assert df.iloc[0]["pnl_abs"] == 0.0
+
+    @patch("analytics.portfolio.usd_to_brl", return_value=None)
+    def test_missing_quote_normal_position(self, mock_usd):
+        """Posicao normal sem cotacao retorna None."""
+        positions = [
+            {
+                "ticker": "XXX",
+                "company_name": "Normal Test",
+                "sector": "financeiro",
                 "market": "BR",
                 "currency": "BRL",
                 "analyst": "",
@@ -124,9 +149,7 @@ class TestCalcTotalPnl:
 
     @patch("analytics.portfolio.usd_to_brl", side_effect=lambda x: x * 5.75 if x else None)
     def test_empty_df(self, mock_usd):
-        df = pd.DataFrame(
-            columns=["total_invested", "current_value_original", "currency"]
-        )
+        df = pd.DataFrame(columns=["total_invested", "current_value_original", "currency"])
         pnl_abs, pnl_pct = calc_total_pnl(df)
         assert pnl_abs == 0.0
         assert pnl_pct == 0.0
@@ -194,9 +217,7 @@ class TestCalcTopMovers:
         assert len(losers) == 1
 
     def test_all_none_change_pct(self):
-        df = pd.DataFrame(
-            {"ticker": ["A", "B"], "change_pct": [None, None], "company_name": ["A", "B"]}
-        )
+        df = pd.DataFrame({"ticker": ["A", "B"], "change_pct": [None, None], "company_name": ["A", "B"]})
         gainers, losers = calc_top_movers(df)
         assert gainers.empty
         assert losers.empty

@@ -135,8 +135,11 @@ class TestBuildPortfolioContext:
         ]
         mock_theses.return_value = [
             {
-                "ticker": "INBR32", "status": "GREEN", "conviction": "HIGH",
-                "target_price": 58.0, "summary": "Banco digital",
+                "ticker": "INBR32",
+                "status": "GREEN",
+                "conviction": "HIGH",
+                "target_price": 58.0,
+                "summary": "Banco digital",
             }
         ]
         result = build_portfolio_context()
@@ -171,9 +174,7 @@ class TestBuildPortfolioContext:
 class TestBuildContextForMessage:
     @patch("data.chat_prompts.get_deep_dives_by_ticker")
     def test_with_ticker_mentioned(self, mock_dives):
-        mock_dives.return_value = [
-            {"version": 1, "date": "2026-02-18", "content_md": "Deep dive content for INBR32"}
-        ]
+        mock_dives.return_value = [{"version": 1, "date": "2026-02-18", "content_md": "Deep dive content for INBR32"}]
         result = build_context_for_message("Como está a INBR32?")
         assert "INBR32" in result
 
@@ -184,9 +185,7 @@ class TestBuildContextForMessage:
 
     @patch("data.chat_prompts.get_deep_dives_by_ticker")
     def test_truncates_long_content(self, mock_dives):
-        mock_dives.return_value = [
-            {"version": 1, "date": "2026-02-18", "content_md": "X" * 5000}
-        ]
+        mock_dives.return_value = [{"version": 1, "date": "2026-02-18", "content_md": "X" * 5000}]
         result = build_context_for_message("Analise INBR32")
         assert "truncado" in result
 

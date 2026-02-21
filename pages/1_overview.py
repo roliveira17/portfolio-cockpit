@@ -23,7 +23,7 @@ from data.db import (
     get_upcoming_catalysts,
     save_portfolio_snapshot,
 )
-from data.market_data import fetch_all_quotes
+from data.market_data import fetch_all_quotes, fetch_weekly_changes
 from utils.cache_info import record_fetch_time, show_freshness_badge
 from utils.formatting import fmt_brl, fmt_date, fmt_pct
 
@@ -117,15 +117,23 @@ with col_left:
         st.plotly_chart(fig, use_container_width=True)
 
 with col_right:
-    st.subheader("Top Movers (dia)")
-    gainers, losers = calc_top_movers(df, n=3)
+    weekly = fetch_weekly_changes()
+    if weekly:
+        df["weekly_change_pct"] = df["ticker"].map(weekly)
+        st.subheader("Top Movers (semana)")
+        gainers, losers = calc_top_movers(df, n=5, change_col="weekly_change_pct")
+        _change_col = "weekly_change_pct"
+    else:
+        st.subheader("Top Movers (dia)")
+        gainers, losers = calc_top_movers(df, n=5)
+        _change_col = "change_pct"
 
     if not gainers.empty:
         for _, row in gainers.iterrows():
-            st.markdown(f"🟢 **{row['ticker']}** {fmt_pct(row['change_pct'], sign=True)}")
+            st.markdown(f"🟢 **{row['ticker']}** {fmt_pct(row[_change_col], sign=True)}")
     if not losers.empty:
         for _, row in losers.iterrows():
-            st.markdown(f"🔴 **{row['ticker']}** {fmt_pct(row['change_pct'], sign=True)}")
+            st.markdown(f"🔴 **{row['ticker']}** {fmt_pct(row[_change_col], sign=True)}")
     if gainers.empty and losers.empty:
         st.info("Sem dados de variação disponíveis.")
 
@@ -139,15 +147,15 @@ col_left2, col_right2 = st.columns([3, 2])
 
 with col_left2:
     st.subheader("Exposição por Fator de Risco")
-    exposures = calc_factor_exposure(df)
+    all_exposures = calc_factor_exposure(df)
+    factor_labels = {
+        "selic_1pp": "Selic / Juros BR",
+        "usdbrl_10pct": "USD/BRL (Câmbio)",
+        "brent_10pct": "Brent (Petróleo)",
+    }
+    exposures = {k: v for k, v in all_exposures.items() if k in factor_labels}
     if exposures:
-        factor_labels = {
-            "selic_1pp": "Selic / Juros BR",
-            "usdbrl_10pct": "USD/BRL (Câmbio)",
-            "ibov_10pct": "Beta IBOV",
-            "brent_10pct": "Brent (Petróleo)",
-        }
-        labels = [factor_labels.get(k, k) for k in exposures]
+        labels = [factor_labels[k] for k in exposures]
         values = list(exposures.values())
 
         fig_bar = go.Figure(

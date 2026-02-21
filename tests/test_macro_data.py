@@ -127,8 +127,12 @@ class TestFetchMacroSnapshot:
     def test_handles_none_gracefully(self, mock_br, mock_global):
         mock_br.return_value = {"selic": None, "ipca_12m": None, "cdi": None, "usd_brl": None}
         mock_global.return_value = {
-            "sp500": None, "vix": None, "dxy": None,
-            "brent": None, "treasury_10y": None, "ibov": None,
+            "sp500": None,
+            "vix": None,
+            "dxy": None,
+            "brent": None,
+            "treasury_10y": None,
+            "ibov": None,
         }
         result = fetch_macro_snapshot()
         assert result["selic"] is None
