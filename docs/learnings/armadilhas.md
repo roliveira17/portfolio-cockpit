@@ -80,3 +80,11 @@ Configurações → Privacidade e Segurança → Segurança do Windows → Contr
 **Problema:** Posições com `sector` "caixa" ou "fundos" não têm cotação de mercado (não existem na brapi/yfinance). `current_price` fica `None`, `current_value_brl` fica `None`, e ~R$143k de patrimônio (caixa + fundos) some do total.
 
 **Solução:** Em `build_portfolio_df`, adicionar caminho especial: se `current_price is None` e `sector in ("caixa", "fundos")`, usar `total_invested` como valor atual e `P&L = 0`. O `continue` pula o cálculo normal de P&L.
+
+---
+
+## 2026-02-21 — Sensibilidades ibov_10pct em escala errada
+
+**Problema:** `FACTOR_SENSITIVITIES["ibov_10pct"]` usava betas brutos (1.2, 0.6) enquanto os outros fatores usam impacto proporcional (-0.05, +0.08). Ao calcular stress test com IBOV -10%, INBR32 mostrava -120% em vez de -12%.
+
+**Solução:** Dividir betas por 10 para converter para escala proporcional: beta 1.2 → 0.12 (= 12% de impacto quando IBOV move 10%). Adicionar comentário explicando a escala.

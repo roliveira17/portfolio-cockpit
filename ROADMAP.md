@@ -1,6 +1,6 @@
 # ROADMAP — Portfolio Cockpit
 
-> Última atualização: 2026-02-21 (sessão 8 — Bug Fixes Overview + Positions)
+> Última atualização: 2026-02-21 (sessão 9 — CSV Importer, Catalysts, EWY, ibov fix)
 > Spec completa: docs/specs/PRD.md
 
 ---
@@ -203,12 +203,29 @@
 
 ---
 
+## Sprint 9 — Ajustes de dados e importador CSV (PR #9)
+
+> Melhorias no importador CSV, atualização de catalisadores e correções de constantes.
+
+### Correções
+- [x] ✅ 2026/02/21 9.1 Adicionar EWY a `TICKERS_US` e `TICKER_SECTOR` (faltava nos mapeamentos)
+- [x] ✅ 2026/02/21 9.2 Atualizar datas e descrições dos 15 catalisadores do seed
+- [x] ✅ 2026/02/21 9.3 Normalizar `ibov_10pct` de betas brutos para escala proporcional (beta/10)
+
+### Melhorias
+- [x] ✅ 2026/02/21 9.4 Importador CSV robusto: detecção formato BR (`;`, `,`), preview, criar novas posições
+
+### Testes
+- [x] ✅ 2026/02/21 321 testes passando, lint limpo
+
+---
+
 ## Pendente — Ações Manuais (pós-deploy)
 
 - [x] ✅ 2026/02/21 Adicionar API key OpenRouter nos secrets do Streamlit Cloud (`[openrouter] api_key`)
 - [x] ✅ 2026/02/21 Rodar seed de teses: `uv run python -m data.seed`
 - [x] ✅ 2026/02/21 Deletar arquivo morto `pages/4_thesis_board.py`
-- [x] ✅ 2026/02/21 Rodar seed de catalisadores (15 inseridos via `seed_catalysts`)
+- [x] ✅ 2026/02/21 Rodar seed de catalisadores (15 inseridos via `seed_catalysts`) — dados atualizados em 9.2
 - [ ] Teste manual: chat (streaming, vision), salvar análise, atualizar posição, KB filtros
 - [x] ✅ 2026/02/21 `requirements.txt` já contém todas as dependências (pyettj, beautifulsoup4, lxml)
 
