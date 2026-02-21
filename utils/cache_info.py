@@ -31,14 +31,15 @@ def show_freshness_badge(key: str, label: str = "Dados") -> None:
     delta = datetime.now() - ts
     minutes = int(delta.total_seconds() / 60)
 
+    time_str = ts.strftime("%H:%M")
     if minutes < 1:
-        text = f"🟢 {label} atualizados agora"
+        text = f"🟢 {label} atualizados agora ({time_str})"
     elif minutes < 15:
-        text = f"🟢 {label} atualizados há {minutes} min"
+        text = f"🟢 {label} atualizados há {minutes} min ({time_str})"
     elif minutes < 60:
-        text = f"🟡 {label} atualizados há {minutes} min"
+        text = f"🟡 {label} atualizados há {minutes} min ({time_str})"
     else:
         hours = minutes // 60
-        text = f"🟠 {label} atualizados há {hours}h{minutes % 60:02d}"
+        text = f"🟠 {label} atualizados há {hours}h{minutes % 60:02d} ({time_str})"
 
     st.caption(text)
