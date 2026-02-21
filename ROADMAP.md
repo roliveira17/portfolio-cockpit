@@ -118,6 +118,15 @@
 
 ---
 
+## Pendente — Ações Manuais (pós-deploy)
+
+- [ ] Adicionar API key OpenRouter nos secrets do Streamlit Cloud (`[openrouter] api_key`)
+- [ ] Rodar seed de teses: `uv run python -m data.seed`
+- [ ] Deletar arquivo morto `pages/4_thesis_board.py`
+- [ ] Teste manual: chat (streaming, vision), salvar análise, atualizar posição, KB filtros
+
+---
+
 ## Notas
 
 - Spec completa com wireframes, modelo de dados e APIs: `docs/specs/PRD.md`
