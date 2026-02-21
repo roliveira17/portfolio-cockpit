@@ -95,3 +95,26 @@
 - Passo 1: detectar intent via regex (barato, sem API call)
 - Passo 2: se intent detectado, chamar LLM com prompt de extração JSON
 - Prompt de extração com schema JSON explícito + "retorne null se insuficiente" evita falsos positivos.
+
+---
+
+## 2026-02-21 — Sessão 6: Sprint 6 (Market Monitor & UX)
+
+**pyettj para curva DI x Pré:**
+- `import pyettj.ettj as ettj` → `ettj.get_ettj(date, curva="PRE")` retorna DataFrame com `dias corridos` e `taxa`.
+- Data no formato DD/MM/YYYY. Só funciona em dias úteis. Wrappear com try/except.
+- Nomes de colunas podem variar — normalizar via pattern matching (`"dia"` + `"corr"` → `dias_corridos`).
+
+**Treasury XML feed (beautifulsoup4):**
+- URL: `home.treasury.gov/.../xml?data=daily_treasury_yield_curve&field_tdr_date_value=YYYY`
+- Parse com `BeautifulSoup(content, "xml")` — tags como `BC_10YEAR`, `d:NEW_DATE`.
+- Último `<entry>` é o mais recente. Extrair `text[:10]` para data.
+
+**`st.column_config.LineChartColumn` para sparklines:**
+- Requer lista de floats por célula do DataFrame. Ex: `df["spark"] = df["ticker"].apply(lambda t: prices[t][-20:])`
+- `color="auto"` → verde se subiu, vermelho se caiu (compara primeiro vs último valor).
+- Incompatível com `.style.format()` — precisa usar `column_config` no lugar de Styler.
+
+**Freshness badge simples e efetivo:**
+- `session_state["_cache_timestamps"]` para rastrear quando dados foram atualizados.
+- `st.caption()` com emoji colorido (🟢/🟡/🟠) por faixa de tempo. Mínimo esforço, máximo valor.

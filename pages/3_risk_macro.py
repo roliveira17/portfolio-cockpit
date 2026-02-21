@@ -20,6 +20,7 @@ from analytics.risk import calc_stress_test_portfolio, calc_var_historical
 from data.db import get_positions
 from data.macro_data import fetch_macro_br, fetch_macro_global
 from data.market_data import fetch_all_quotes, fetch_batch_price_history
+from utils.cache_info import record_fetch_time, show_freshness_badge
 from utils.constants import CACHE_TTL_QUOTES, TICKERS_BR, TICKERS_US
 from utils.formatting import fmt_number, fmt_pct
 
@@ -67,6 +68,8 @@ def _calc_correlation_matrix():
 
 st.header("⚠️ Risk & Macro")
 
+show_freshness_badge("macro", "Dados Macro")
+
 tab_macro, tab_risk = st.tabs(["🌐 Macro Dashboard", "📉 Risk Dashboard"])
 
 # ============================================================
@@ -76,6 +79,7 @@ tab_macro, tab_risk = st.tabs(["🌐 Macro Dashboard", "📉 Risk Dashboard"])
 with tab_macro:
     macro_br = fetch_macro_br()
     macro_gl = fetch_macro_global()
+    record_fetch_time("macro")
 
     # KPI Cards — linha 1
     c1, c2, c3, c4 = st.columns(4)
@@ -111,7 +115,9 @@ with tab_macro:
     bhkp_col1, bhkp_col2 = st.columns([2, 3])
     with bhkp_col1:
         bhkp_price = st.number_input(
-            "Preço BHKP (USD/ton)", min_value=0.0, step=1.0,
+            "Preço BHKP (USD/ton)",
+            min_value=0.0,
+            step=1.0,
             value=st.session_state.get("bhkp_price", 0.0),
             help="Inserir manualmente. Fonte: Fastmarkets ou relatórios setoriais.",
         )
@@ -139,11 +145,13 @@ with tab_macro:
     stress_rows = []
     for label, shocks in default_shocks:
         result = calc_stress_test_portfolio(_df_stress, shocks)
-        stress_rows.append({
-            "Cenário": label,
-            "Impacto (%)": f"{result['total_impact_pct']:+.1f}%",
-            "Impacto (R$)": f"R$ {result['total_impact_brl']:+,.0f}",
-        })
+        stress_rows.append(
+            {
+                "Cenário": label,
+                "Impacto (%)": f"{result['total_impact_pct']:+.1f}%",
+                "Impacto (R$)": f"R$ {result['total_impact_brl']:+,.0f}",
+            }
+        )
     st.dataframe(pd.DataFrame(stress_rows), use_container_width=True, hide_index=True)
 
 # ============================================================
@@ -205,7 +213,9 @@ with tab_risk:
 
     # Buscar histórico e calcular retornos
     price_hist = fetch_batch_price_history(
-        tickers_br=TICKERS_BR, tickers_us=TICKERS_US, period="6mo",
+        tickers_br=TICKERS_BR,
+        tickers_us=TICKERS_US,
+        period="6mo",
     )
     weight_map = {row["ticker"]: row["weight"] / 100 for _, row in df.iterrows() if row["weight"] > 0}
     port_returns = calc_portfolio_returns(price_hist, weight_map) if price_hist is not None else None

@@ -177,6 +177,75 @@ REPORT_TYPES = {
 # OpenRouter Models — Chat page (Sprint 5)
 # ============================================================
 
+# ============================================================
+# Índices Globais por Região — Sprint 6 (Markets page)
+# ============================================================
+
+GLOBAL_INDICES = {
+    "americas": [
+        {"ticker": "^GSPC", "name": "S&P 500", "country": "EUA"},
+        {"ticker": "^IXIC", "name": "Nasdaq", "country": "EUA"},
+        {"ticker": "^DJI", "name": "Dow Jones", "country": "EUA"},
+        {"ticker": "^BVSP", "name": "Ibovespa", "country": "Brasil"},
+        {"ticker": "^MXX", "name": "IPC México", "country": "México"},
+    ],
+    "europe": [
+        {"ticker": "^GDAXI", "name": "DAX", "country": "Alemanha"},
+        {"ticker": "^FTSE", "name": "FTSE 100", "country": "Reino Unido"},
+        {"ticker": "^FCHI", "name": "CAC 40", "country": "França"},
+        {"ticker": "^STOXX", "name": "STOXX 600", "country": "Europa"},
+    ],
+    "asia_pacific": [
+        {"ticker": "^N225", "name": "Nikkei 225", "country": "Japão"},
+        {"ticker": "^HSI", "name": "Hang Seng", "country": "Hong Kong"},
+        {"ticker": "000001.SS", "name": "Shanghai", "country": "China"},
+        {"ticker": "^AXJO", "name": "ASX 200", "country": "Austrália"},
+    ],
+}
+
+REGION_LABELS = {
+    "americas": "Américas",
+    "europe": "Europa",
+    "asia_pacific": "Ásia-Pacífico",
+}
+
+# ============================================================
+# Commodities — Sprint 6 (Markets page)
+# ============================================================
+
+COMMODITIES_TICKERS = [
+    {"ticker": "BZ=F", "name": "Brent", "unit": "USD/bbl", "category": "energy"},
+    {"ticker": "CL=F", "name": "WTI", "unit": "USD/bbl", "category": "energy"},
+    {"ticker": "NG=F", "name": "Gás Natural", "unit": "USD/MMBtu", "category": "energy"},
+    {"ticker": "GC=F", "name": "Ouro", "unit": "USD/oz", "category": "metals"},
+    {"ticker": "SI=F", "name": "Prata", "unit": "USD/oz", "category": "metals"},
+    {"ticker": "HG=F", "name": "Cobre", "unit": "USD/lb", "category": "metals"},
+    {"ticker": "ZS=F", "name": "Soja", "unit": "USD/bu", "category": "agri"},
+    {"ticker": "ZC=F", "name": "Milho", "unit": "USD/bu", "category": "agri"},
+]
+
+# ============================================================
+# Treasury Yield Curve — maturidades padrão
+# ============================================================
+
+TREASURY_MATURITIES = [
+    {"tag": "BC_1MONTH", "label": "1M", "years": 1 / 12},
+    {"tag": "BC_3MONTH", "label": "3M", "years": 3 / 12},
+    {"tag": "BC_6MONTH", "label": "6M", "years": 6 / 12},
+    {"tag": "BC_1YEAR", "label": "1A", "years": 1},
+    {"tag": "BC_2YEAR", "label": "2A", "years": 2},
+    {"tag": "BC_3YEAR", "label": "3A", "years": 3},
+    {"tag": "BC_5YEAR", "label": "5A", "years": 5},
+    {"tag": "BC_7YEAR", "label": "7A", "years": 7},
+    {"tag": "BC_10YEAR", "label": "10A", "years": 10},
+    {"tag": "BC_20YEAR", "label": "20A", "years": 20},
+    {"tag": "BC_30YEAR", "label": "30A", "years": 30},
+]
+
+# ============================================================
+# OpenRouter Models — Chat page (Sprint 5)
+# ============================================================
+
 OPENROUTER_MODELS = {
     "Claude Sonnet 4.6 (~$2.25/sessão)": {"id": "anthropic/claude-sonnet-4-20250514", "supports_vision": True},
     "Claude Haiku 4.5 (~$0.75)": {"id": "anthropic/claude-haiku-4-20250514", "supports_vision": True},

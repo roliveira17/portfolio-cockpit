@@ -46,6 +46,7 @@ def main():
         st.Page("pages/4_chat.py", title="Assessor", icon="💬"),
         st.Page("pages/5_knowledge_base.py", title="Knowledge Base", icon="📚"),
         st.Page("pages/6_simulator.py", title="Simulator", icon="🔬"),
+        st.Page("pages/7_markets.py", title="Markets", icon="🌍"),
     ]
     nav = st.navigation(pages)
     nav.run()

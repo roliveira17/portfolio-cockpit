@@ -94,10 +94,14 @@ def test_calc_stress_scenario_unknown(sample_portfolio_df):
 
 def test_calc_stress_test_real_ticker():
     """Test with a real ticker from FACTOR_SENSITIVITIES to verify non-zero impact."""
-    df = pd.DataFrame([{
-        "ticker": "INBR32",
-        "current_value_brl": 10000.0,
-    }])
+    df = pd.DataFrame(
+        [
+            {
+                "ticker": "INBR32",
+                "current_value_brl": 10000.0,
+            }
+        ]
+    )
     shocks = {"selic_1pp": 1.0}
     result = calc_stress_test_portfolio(df, shocks)
     assert result["total_impact_pct"] != 0

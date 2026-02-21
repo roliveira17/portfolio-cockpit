@@ -142,11 +142,11 @@ def fetch_batch_price_history(
     all_yf = []
     rename_map = {}
 
-    for t in (tickers_br or []):
+    for t in tickers_br or []:
         yf_t = f"{t}.SA"
         all_yf.append(yf_t)
         rename_map[yf_t] = t
-    for t in (tickers_us or []):
+    for t in tickers_us or []:
         all_yf.append(t)
         rename_map[t] = t
 

@@ -108,13 +108,15 @@ def calc_stress_test_portfolio(
         impact_brl = value_brl * position_impact_pct
         total_impact_brl += impact_brl
 
-        per_position.append({
-            "ticker": ticker,
-            "current_value_brl": round(value_brl, 2),
-            "impact_pct": round(position_impact_pct * 100, 2),
-            "impact_brl": round(impact_brl, 2),
-            "new_value_brl": round(value_brl + impact_brl, 2),
-        })
+        per_position.append(
+            {
+                "ticker": ticker,
+                "current_value_brl": round(value_brl, 2),
+                "impact_pct": round(position_impact_pct * 100, 2),
+                "impact_brl": round(impact_brl, 2),
+                "new_value_brl": round(value_brl + impact_brl, 2),
+            }
+        )
 
     total_impact_pct = (total_impact_brl / total_value) * 100
 
