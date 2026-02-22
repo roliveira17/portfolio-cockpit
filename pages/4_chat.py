@@ -32,6 +32,11 @@ from data.llm import (
 from utils.constants import OPENROUTER_MODELS, THESIS_STATUS
 from utils.formatting import fmt_date
 
+# Auth guard
+if not st.session_state.get("authenticated"):
+    st.warning("Faça login pela página principal.")
+    st.stop()
+
 # ============================================================
 # Save / update helpers (must be defined before use)
 # ============================================================

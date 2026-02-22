@@ -9,6 +9,11 @@ from data.yield_curve import fetch_br_yield_curve, fetch_us_treasury_curve
 from utils.constants import REGION_LABELS
 from utils.formatting import fmt_number, fmt_pct
 
+# Auth guard
+if not st.session_state.get("authenticated"):
+    st.warning("Faça login pela página principal.")
+    st.stop()
+
 st.header("🌍 Markets")
 
 tab_indices, tab_commodities, tab_curves = st.tabs(["📈 Índices Globais", "🛢️ Commodities", "📐 Curva de Juros"])

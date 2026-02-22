@@ -12,6 +12,11 @@ from utils.cache_info import record_fetch_time, show_freshness_badge
 from utils.constants import TICKER_SECTOR, TICKERS_BR, TICKERS_US
 from utils.formatting import fmt_brl, fmt_pct, fmt_usd
 
+# Auth guard
+if not st.session_state.get("authenticated"):
+    st.warning("Faça login pela página principal.")
+    st.stop()
+
 st.header("💼 Positions")
 
 

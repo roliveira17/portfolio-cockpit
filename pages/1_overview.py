@@ -27,6 +27,11 @@ from data.market_data import fetch_all_quotes, fetch_weekly_changes
 from utils.cache_info import record_fetch_time, show_freshness_badge
 from utils.formatting import fmt_brl, fmt_date, fmt_pct
 
+# Auth guard
+if not st.session_state.get("authenticated"):
+    st.warning("Faça login pela página principal.")
+    st.stop()
+
 st.header("📊 Overview")
 
 # --- Carregar dados ---

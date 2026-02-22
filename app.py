@@ -17,6 +17,7 @@ def check_auth() -> bool:
 
     password = st.secrets.get("auth", {}).get("password", "")
     if not password:
+        st.session_state["authenticated"] = True
         return True
 
     st.markdown("## 🏦 Portfolio Cockpit")
