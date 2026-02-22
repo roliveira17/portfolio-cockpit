@@ -12,6 +12,11 @@ from utils.constants import (
     TICKER_SECTOR,
 )
 
+# Auth guard
+if not st.session_state.get("authenticated"):
+    st.warning("Faça login pela página principal.")
+    st.stop()
+
 
 def _fix_encoding(text: str) -> str:
     """Try latin-1 -> utf-8 re-encode; fall back to original."""
