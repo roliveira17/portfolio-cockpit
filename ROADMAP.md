@@ -18,8 +18,9 @@
 | 7 — QA Automation | 2026/02/21 | 311 testes (formatting, currency, seed, chat_prompts, portfolio, market_data, macro_data, yield_curve, global_markets, llm, db) + conftest fixtures | 13 |
 | 8 — Bug Fixes | 2026/02/21 | Caixa/fundos no patrimônio, top movers semanais, model_key fix, exposição duplicada, freshness badge, colunas Positions, import CSV, seed 15 catalisadores | 12 |
 | 9 — Ajustes Finais | 2026/02/21 | EWY em mapeamentos, catalisadores atualizados, ibov_10pct normalizado, CSV importer robusto | 4 |
+| 10 — Security Fix | 2026/02/22 | Fix auth bypass (session_state + auth guards em 7 páginas), PR #11 | 1 |
 
-**Total: 107 tasks concluídas, 321 testes passando em ~1.7s**
+**Total: 108 tasks concluídas, 321 testes passando em ~1.7s**
 
 ---
 
