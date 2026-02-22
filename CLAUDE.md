@@ -29,29 +29,21 @@ uv run pytest tests/ -x             # Testes (só analytics)
 ```
 portfolio-cockpit/
 ├── app.py                          # Entry point Streamlit multipage
-├── pyproject.toml                  # Deps e config (uv)
-├── .streamlit/config.toml          # Tema Streamlit
-├── pages/                          # Páginas do dashboard
-├── data/                           # DB, APIs, seed
-├── analytics/                      # Cálculos de portfólio e risco
-├── utils/                          # Helpers (formatação, constantes)
-├── tests/                          # Testes (só módulos analytics/)
-├── knowledge_base/                 # Deep dives .md para seed no DB
-├── docs/                           # Specs, learnings, decisions
-│   ├── specs/PRD.md
-│   ├── learnings/
-│   └── decisions/
-└── ROADMAP.md                      # Estado do projeto e tasks
+├── pages/                          # 7 páginas (overview, positions, risk_macro, chat, knowledge_base, simulator, markets)
+├── data/                           # DB, APIs, LLM, seed (db, market_data, macro_data, llm, chat_prompts, yield_curve, global_markets, seed)
+├── analytics/                      # Cálculos (portfolio, risk, performance, simulator)
+├── utils/                          # Helpers (formatting, constants, currency, cache_info)
+├── tests/                          # 321 testes (utils/, data/, analytics/)
+├── knowledge_base/                 # Deep dives .md (seed no DB)
+└── docs/                           # Specs, learnings, decisions
 ```
 
-Para detalhes completos: @docs/specs/PRD.md
+Referência compacta do modelo de dados e APIs: @docs/specs/PRD.md
 
-## Workflow: Spec-Driven Development (SDD)
+## Workflow
 
-IMPORTANTE: Este projeto segue Spec-Driven Development.
-
-1. **Sempre leia a spec antes de implementar.** A spec é `docs/specs/PRD.md`. Cada página do dashboard tem wireframe e funcionalidades detalhadas lá.
-2. **Sempre leia o ROADMAP.md** para saber o estado atual e a próxima task.
+1. **Leia a spec antes de implementar.** A spec é `docs/specs/PRD.md` (modelo de dados, APIs, requisitos).
+2. **Leia o ROADMAP.md** para saber o estado atual.
 3. **Se a spec não cobre algo**, pergunte. Não invente requisitos.
 4. **Se descobrir que a spec precisa mudar**, proponha a mudança antes de implementar.
 
@@ -87,10 +79,10 @@ IMPORTANTE: Este projeto segue Spec-Driven Development.
 - Cache agressivo. Minimize chamadas de API.
 
 **Testes:**
-- Testes apenas em `analytics/` (portfolio.py, risk.py, simulator.py, performance.py).
+- 321 testes cobrindo `utils/`, `data/`, `analytics/` (tudo mockado, sem I/O real).
 - Framework: pytest. Rodar: `uv run pytest tests/ -x`
 - Não testar UI do Streamlit (alto custo, baixo retorno).
-- Dados de teste: fixtures com valores conhecidos, não APIs reais.
+- Dados de teste: fixtures em `conftest.py` com valores conhecidos.
 
 ## Quando Algo Dá Errado
 

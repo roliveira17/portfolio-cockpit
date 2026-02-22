@@ -8,6 +8,8 @@ Dashboard de monitoramento de portfólio de investimentos para family office, co
 - **Banco de dados:** Supabase (PostgreSQL)
 - **Dados de mercado:** brapi.dev (BR) + yfinance (US)
 - **Dados macro:** BCB API + yfinance
+- **Curva de juros:** pyettj (BR DI x Pré) + Treasury.gov XML (US)
+- **Chat/LLM:** OpenRouter (9 modelos via SDK OpenAI)
 - **Analytics:** Pandas, NumPy
 - **Deploy:** Streamlit Cloud
 
@@ -19,6 +21,7 @@ Dashboard de monitoramento de portfólio de investimentos para family office, co
 - [uv](https://docs.astral.sh/uv/) (package manager)
 - Conta Supabase (free tier)
 - Token brapi.dev (gratuito)
+- API key OpenRouter (para Chat Assessor)
 
 ### Instalação
 
@@ -48,6 +51,9 @@ token = "xxxxx"
 
 [auth]
 password = "xxxxx"
+
+[openrouter]
+api_key = "sk-or-xxxxx"
 ```
 
 ### Banco de dados
@@ -71,7 +77,7 @@ uv sync                          # Instalar dependências
 uv run streamlit run app.py      # Rodar local
 uv run ruff check .              # Lint
 uv run ruff format .             # Formatar
-uv run pytest tests/ -x          # Testes
+uv run pytest tests/ -x          # Testes (321 testes, ~1.7s)
 ```
 
 ## Estrutura
@@ -79,17 +85,22 @@ uv run pytest tests/ -x          # Testes
 ```
 portfolio-cockpit/
 ├── app.py                  # Entry point (multipage + auth)
-├── pages/                  # 6 páginas do dashboard
+├── pages/                  # 7 páginas do dashboard
 │   ├── 1_overview.py       # Visão geral, KPIs, alocação
 │   ├── 2_positions.py      # Detalhes de cada posição
 │   ├── 3_risk_macro.py     # Indicadores macro e risco
-│   ├── 4_thesis_board.py   # Gestão de teses de investimento
+│   ├── 4_chat.py           # Chat Assessor (análise via LLM)
 │   ├── 5_knowledge_base.py # Repositório de deep dives
-│   └── 6_simulator.py      # Simulação what-if
+│   ├── 6_simulator.py      # Simulação what-if
+│   └── 7_markets.py        # Índices globais, commodities, curva de juros
 ├── data/                   # Camada de dados
 │   ├── db.py               # CRUD Supabase
 │   ├── market_data.py      # Cotações BR/US
 │   ├── macro_data.py       # Indicadores macro
+│   ├── llm.py              # Cliente OpenRouter
+│   ├── chat_prompts.py     # Prompts e contexto do Chat
+│   ├── yield_curve.py      # Curva DI x Pré + Treasury
+│   ├── global_markets.py   # Índices globais + commodities
 │   └── seed.py             # Popular banco inicial
 ├── analytics/              # Cálculos
 │   ├── portfolio.py        # Pesos, P&L, exposição
@@ -99,8 +110,9 @@ portfolio-cockpit/
 ├── utils/                  # Helpers
 │   ├── constants.py        # Tickers, setores, configs
 │   ├── formatting.py       # Formatação de moedas/datas
-│   └── currency.py         # Conversão BRL/USD
-└── tests/                  # Testes (analytics/)
+│   ├── currency.py         # Conversão BRL/USD
+│   └── cache_info.py       # Freshness badges
+└── tests/                  # 321 testes (utils/, data/, analytics/)
 ```
 
 ## Páginas
@@ -108,15 +120,16 @@ portfolio-cockpit/
 | Página | Funcionalidade |
 |--------|---------------|
 | **Overview** | KPIs, alocação setorial, top movers, exposição por fator, catalisadores |
-| **Positions** | Tabela de posições, P&L, detalhes, registro de transações, export CSV |
-| **Risk & Macro** | Indicadores macro, stress matrix, correlation matrix, risk metrics, drawdown |
-| **Thesis Board** | Kanban de teses (verde/amarelo/vermelho), CRUD, catalisadores, timeline |
-| **Knowledge Base** | Deep dives por ticker, relatórios, comparação entre versões, timeline |
-| **Simulator** | Rebalanceamento, stress test (4 cenários), simulação de trade |
+| **Positions** | Tabela de posições, P&L, sparklines, registro de transações, import/export CSV |
+| **Risk & Macro** | Indicadores macro, curva DI, stress matrix, correlation matrix, risk metrics, drawdown |
+| **Chat Assessor** | Análise de posições via LLM (OpenRouter), gestão de teses por conversa, vision |
+| **Knowledge Base** | Deep dives por ticker, relatórios, comparação entre versões, busca full-text |
+| **Simulator** | Rebalanceamento, stress test (4 cenários macro), simulação de trade |
+| **Markets** | Índices globais por região, commodities, curva de juros BR + US side-by-side |
 
 ## Testes
 
-Testes cobrem apenas os módulos em `analytics/`:
+321 testes cobrindo `utils/`, `data/` e `analytics/` (100% mockados, sem I/O real):
 
 ```bash
 uv run pytest tests/ -x -v
