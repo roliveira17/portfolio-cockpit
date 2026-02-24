@@ -20,14 +20,12 @@ from analytics.risk import calc_stress_test_portfolio, calc_var_historical
 from data.db import get_positions
 from data.macro_data import fetch_macro_br, fetch_macro_global
 from data.market_data import fetch_all_quotes, fetch_batch_price_history
+from utils.auth import check_auth
 from utils.cache_info import record_fetch_time, show_freshness_badge
 from utils.constants import CACHE_TTL_QUOTES, TICKERS_BR, TICKERS_US
 from utils.formatting import fmt_number, fmt_pct
 
-# Auth guard
-if not st.session_state.get("authenticated"):
-    st.warning("Faça login pela página principal.")
-    st.stop()
+check_auth()
 
 # ============================================================
 # Helpers
@@ -114,24 +112,13 @@ with tab_macro:
 
     c8.metric("IPCA 12m", fmt_pct(macro_br.get("ipca_12m"), decimals=2))
 
-    # --- Celulose BHKP (input manual - Task 4.6) ---
+    # --- Celulose BHKP (display — input na aba Markets) ---
     st.markdown("---")
-    st.subheader("Celulose BHKP")
-    bhkp_col1, bhkp_col2 = st.columns([2, 3])
-    with bhkp_col1:
-        bhkp_price = st.number_input(
-            "Preço BHKP (USD/ton)",
-            min_value=0.0,
-            step=1.0,
-            value=st.session_state.get("bhkp_price", 0.0),
-            help="Inserir manualmente. Fonte: Fastmarkets ou relatórios setoriais.",
-        )
-        st.session_state["bhkp_price"] = bhkp_price
-    with bhkp_col2:
-        if bhkp_price > 0:
-            st.metric("BHKP", f"US$ {bhkp_price:.0f}/ton")
-        else:
-            st.info("Insira o preço atual da celulose BHKP manualmente.")
+    bhkp_price = st.session_state.get("bhkp_price", 0.0)
+    if bhkp_price > 0:
+        st.metric("Celulose BHKP", f"US$ {bhkp_price:.0f}/ton")
+    else:
+        st.caption("BHKP: insira na aba Markets → Commodities.")
 
     st.markdown("---")
 
@@ -222,7 +209,8 @@ with tab_risk:
         tickers_us=TICKERS_US,
         period="6mo",
     )
-    weight_map = {row["ticker"]: row["weight"] / 100 for _, row in df.iterrows() if row["weight"] > 0}
+    _valid_weights = df[df["weight"] > 0]
+    weight_map = dict(zip(_valid_weights["ticker"], _valid_weights["weight"] / 100))
     port_returns = calc_portfolio_returns(price_hist, weight_map) if price_hist is not None else None
 
     if port_returns is not None and len(port_returns) >= 20:

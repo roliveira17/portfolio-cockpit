@@ -6,13 +6,11 @@ import streamlit as st
 
 from data.global_markets import fetch_commodities, fetch_global_indices
 from data.yield_curve import fetch_br_yield_curve, fetch_us_treasury_curve
+from utils.auth import check_auth
 from utils.constants import REGION_LABELS
 from utils.formatting import fmt_number, fmt_pct
 
-# Auth guard
-if not st.session_state.get("authenticated"):
-    st.warning("Faça login pela página principal.")
-    st.stop()
+check_auth()
 
 st.header("🌍 Markets")
 

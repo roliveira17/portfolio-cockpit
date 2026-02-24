@@ -29,13 +29,11 @@ from data.llm import (
     fetch_openrouter_credits,
     stream_chat_response,
 )
+from utils.auth import check_auth
 from utils.constants import OPENROUTER_MODELS, THESIS_STATUS
 from utils.formatting import fmt_date
 
-# Auth guard
-if not st.session_state.get("authenticated"):
-    st.warning("Faça login pela página principal.")
-    st.stop()
+check_auth()
 
 # ============================================================
 # Save / update helpers (must be defined before use)

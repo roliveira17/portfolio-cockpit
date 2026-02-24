@@ -8,14 +8,12 @@ import streamlit as st
 from analytics.portfolio import build_portfolio_df
 from data.db import get_position_by_ticker, get_positions, get_theses, insert_row, update_row
 from data.market_data import fetch_all_quotes, fetch_batch_price_history, fetch_weekly_changes
+from utils.auth import check_auth
 from utils.cache_info import record_fetch_time, show_freshness_badge
 from utils.constants import TICKER_SECTOR, TICKERS_BR, TICKERS_US
 from utils.formatting import fmt_brl, fmt_pct, fmt_usd
 
-# Auth guard
-if not st.session_state.get("authenticated"):
-    st.warning("Faça login pela página principal.")
-    st.stop()
+check_auth()
 
 st.header("💼 Positions")
 
@@ -322,35 +320,40 @@ with col_imp:
                 for col in ["quantity", "avg_price"]:
                     if imp_df[col].dtype == object:
                         imp_df[col] = (
-                            imp_df[col].str.replace(".", "", regex=False)
+                            imp_df[col]
+                            .str.replace(".", "", regex=False)
                             .str.replace(",", ".", regex=False)
                             .astype(float)
                         )
 
                 preview_rows = []
-                for _, imp_row in imp_df.iterrows():
-                    ticker = str(imp_row["ticker"]).strip().upper()
+                for imp_row in imp_df.itertuples():
+                    ticker = str(imp_row.ticker).strip().upper()
                     pos = get_position_by_ticker(ticker)
-                    qty_new = float(imp_row["quantity"])
-                    pm_new = float(imp_row["avg_price"])
+                    qty_new = float(imp_row.quantity)
+                    pm_new = float(imp_row.avg_price)
                     if pos:
-                        preview_rows.append({
-                            "ticker": ticker,
-                            "qty_atual": pos["quantity"],
-                            "qty_nova": qty_new,
-                            "pm_atual": pos["avg_price"],
-                            "pm_novo": pm_new,
-                            "acao": "ATUALIZAR",
-                        })
+                        preview_rows.append(
+                            {
+                                "ticker": ticker,
+                                "qty_atual": pos["quantity"],
+                                "qty_nova": qty_new,
+                                "pm_atual": pos["avg_price"],
+                                "pm_novo": pm_new,
+                                "acao": "ATUALIZAR",
+                            }
+                        )
                     else:
-                        preview_rows.append({
-                            "ticker": ticker,
-                            "qty_atual": "NOVO",
-                            "qty_nova": qty_new,
-                            "pm_atual": "NOVO",
-                            "pm_novo": pm_new,
-                            "acao": "CRIAR",
-                        })
+                        preview_rows.append(
+                            {
+                                "ticker": ticker,
+                                "qty_atual": "NOVO",
+                                "qty_nova": qty_new,
+                                "pm_atual": "NOVO",
+                                "pm_novo": pm_new,
+                                "acao": "CRIAR",
+                            }
+                        )
 
                 if preview_rows:
                     st.subheader("Preview da importação")
@@ -359,48 +362,56 @@ with col_imp:
                     if st.button("Confirmar importação", type="primary"):
                         created = 0
                         updated_count = 0
-                        for row_p in preview_rows:
-                            ticker = row_p["ticker"]
-                            qty = row_p["qty_nova"]
-                            pm = row_p["pm_novo"]
-                            if row_p["acao"] == "ATUALIZAR":
-                                pos = get_position_by_ticker(ticker)
-                                update_row("positions", pos["id"], {
-                                    "quantity": qty,
-                                    "avg_price": pm,
-                                    "total_invested": qty * pm,
-                                })
-                                updated_count += 1
-                            else:
-                                _special = {"CAIXA", "ELET_FMP", "FIDC_MICROCREDITO"}
-                                if ticker in TICKERS_BR or ticker in _special:
-                                    market, currency = "BR", "BRL"
-                                elif re.search(r"\d$", ticker):
-                                    market, currency = "BR", "BRL"
+                        with st.spinner("Importando posições..."):
+                            for row_p in preview_rows:
+                                ticker = row_p["ticker"]
+                                qty = row_p["qty_nova"]
+                                pm = row_p["pm_novo"]
+                                if row_p["acao"] == "ATUALIZAR":
+                                    pos = get_position_by_ticker(ticker)
+                                    update_row(
+                                        "positions",
+                                        pos["id"],
+                                        {
+                                            "quantity": qty,
+                                            "avg_price": pm,
+                                            "total_invested": qty * pm,
+                                        },
+                                    )
+                                    updated_count += 1
                                 else:
-                                    market, currency = "US", "USD"
-                                sector = TICKER_SECTOR.get(ticker)
-                                if not sector:
-                                    if ticker == "EWY" or ticker.startswith("EW"):
-                                        sector = "fundos"
-                                    elif market == "US":
-                                        sector = "tech_semis"
+                                    _special = {"CAIXA", "ELET_FMP", "FIDC_MICROCREDITO"}
+                                    if ticker in TICKERS_BR or ticker in _special:
+                                        market, currency = "BR", "BRL"
+                                    elif re.search(r"\d$", ticker):
+                                        market, currency = "BR", "BRL"
                                     else:
-                                        sector = "consumo_varejo"
-                                insert_row("positions", {
-                                    "ticker": ticker,
-                                    "company_name": ticker,
-                                    "market": market,
-                                    "currency": currency,
-                                    "sector": sector,
-                                    "quantity": qty,
-                                    "avg_price": pm,
-                                    "total_invested": qty * pm,
-                                    "dividends_received": 0,
-                                    "target_weight": 0,
-                                    "is_active": True,
-                                })
-                                created += 1
+                                        market, currency = "US", "USD"
+                                    sector = TICKER_SECTOR.get(ticker)
+                                    if not sector:
+                                        if ticker == "EWY" or ticker.startswith("EW"):
+                                            sector = "fundos"
+                                        elif market == "US":
+                                            sector = "tech_semis"
+                                        else:
+                                            sector = "consumo_varejo"
+                                    insert_row(
+                                        "positions",
+                                        {
+                                            "ticker": ticker,
+                                            "company_name": ticker,
+                                            "market": market,
+                                            "currency": currency,
+                                            "sector": sector,
+                                            "quantity": qty,
+                                            "avg_price": pm,
+                                            "total_invested": qty * pm,
+                                            "dividends_received": 0,
+                                            "target_weight": 0,
+                                            "is_active": True,
+                                        },
+                                    )
+                                    created += 1
                         msg = []
                         if updated_count:
                             msg.append(f"{updated_count} atualizadas")

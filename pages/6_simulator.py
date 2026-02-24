@@ -11,12 +11,10 @@ from analytics.risk import (
 from analytics.simulator import simulate_new_trade, simulate_rebalance
 from data.db import get_positions
 from data.market_data import fetch_all_quotes
+from utils.auth import check_auth
 from utils.formatting import fmt_brl, fmt_pct
 
-# Auth guard
-if not st.session_state.get("authenticated"):
-    st.warning("Faça login pela página principal.")
-    st.stop()
+check_auth()
 
 st.header("🔬 Simulator")
 
@@ -72,9 +70,9 @@ if mode == "Rebalanceamento":
                 new_weights[ticker] = new_w
 
     # Manter pesos de fundos e caixa inalterados
-    for _, row in df.iterrows():
-        if row["ticker"] not in new_weights:
-            new_weights[row["ticker"]] = float(row["weight"])
+    remaining = df[~df["ticker"].isin(new_weights.keys())]
+    for ticker, weight in zip(remaining["ticker"], remaining["weight"]):
+        new_weights[ticker] = float(weight)
 
     if st.button("📊 Simular Rebalanceamento"):
         result = simulate_rebalance(df, new_weights)
