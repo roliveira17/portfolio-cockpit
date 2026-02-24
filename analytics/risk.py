@@ -105,6 +105,10 @@ def calc_stress_test_portfolio(
             # impact = sensibilidade × (shock / escala)
             position_impact_pct += sensitivity * (shock_magnitude / scale)
 
+        # Guard against NaN/inf from bad data
+        if not np.isfinite(position_impact_pct):
+            position_impact_pct = 0.0
+
         impact_brl = value_brl * position_impact_pct
         total_impact_brl += impact_brl
 
@@ -119,6 +123,10 @@ def calc_stress_test_portfolio(
         )
 
     total_impact_pct = (total_impact_brl / total_value) * 100
+
+    # Guard against NaN/inf from bad data
+    if not np.isfinite(total_impact_pct):
+        total_impact_pct = 0.0
 
     return {
         "total_impact_pct": round(total_impact_pct, 2),

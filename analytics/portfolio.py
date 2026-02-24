@@ -6,6 +6,41 @@ from utils.constants import FACTOR_SENSITIVITIES, SECTORS
 from utils.currency import usd_to_brl
 
 
+def _build_position_row(
+    pos: dict,
+    current_price: float | None,
+    change_pct: float | None,
+    current_value_original: float | None,
+    current_value_brl: float | None,
+    pnl_abs: float | None,
+    pnl_pct: float | None,
+    pnl_with_div_pct: float | None,
+) -> dict:
+    """Create a single position row dict with all standard fields."""
+    return {
+        "ticker": pos["ticker"],
+        "company_name": pos.get("company_name", ""),
+        "sector": pos.get("sector", ""),
+        "market": pos.get("market", ""),
+        "currency": pos.get("currency", ""),
+        "analyst": pos.get("analyst", ""),
+        "quantity": float(pos.get("quantity", 0)),
+        "avg_price": float(pos.get("avg_price", 0)),
+        "total_invested": float(pos.get("total_invested", 0)),
+        "dividends_received": float(pos.get("dividends_received", 0)),
+        "current_price": current_price,
+        "current_value_original": current_value_original,
+        "current_value_brl": current_value_brl,
+        "pnl_abs": pnl_abs,
+        "pnl_pct": pnl_pct,
+        "pnl_with_div_pct": pnl_with_div_pct,
+        "weight": 0.0,
+        "target_weight": float(pos.get("target_weight", 0)),
+        "weight_gap": 0.0,
+        "change_pct": change_pct,
+    }
+
+
 def build_portfolio_df(positions: list[dict], quotes: dict[str, dict]) -> pd.DataFrame:
     """Constrói DataFrame consolidado com posições + cotações + P&L.
 
@@ -26,85 +61,46 @@ def build_portfolio_df(positions: list[dict], quotes: dict[str, dict]) -> pd.Dat
         current_price = quote.get("price")
         change_pct = quote.get("change_pct")
 
-        quantity = float(pos.get("quantity", 0))
-        avg_price = float(pos.get("avg_price", 0))
         total_invested = float(pos.get("total_invested", 0))
         dividends = float(pos.get("dividends_received", 0))
-        target_weight = float(pos.get("target_weight", 0))
+        sector = pos.get("sector", "")
 
         # Caixa e Fundos: sem cotação de mercado, usar total_invested como valor
-        sector = pos.get("sector", "")
         if current_price is None and sector in ("caixa", "fundos"):
-            current_value_original = total_invested
-            current_value_brl = total_invested
-            pnl_abs = 0.0
-            pnl_pct = 0.0
-            pnl_with_div_pct = 0.0
             rows.append(
-                {
-                    "ticker": ticker,
-                    "company_name": pos.get("company_name", ""),
-                    "sector": sector,
-                    "market": pos.get("market", ""),
-                    "currency": pos.get("currency", ""),
-                    "analyst": pos.get("analyst", ""),
-                    "quantity": quantity,
-                    "avg_price": avg_price,
-                    "total_invested": total_invested,
-                    "dividends_received": dividends,
-                    "current_price": current_price,
-                    "current_value_original": current_value_original,
-                    "current_value_brl": current_value_brl,
-                    "pnl_abs": pnl_abs,
-                    "pnl_pct": pnl_pct,
-                    "pnl_with_div_pct": pnl_with_div_pct,
-                    "weight": 0.0,
-                    "target_weight": target_weight,
-                    "weight_gap": 0.0,
-                    "change_pct": change_pct,
-                }
+                _build_position_row(
+                    pos,
+                    current_price,
+                    change_pct,
+                    total_invested,
+                    total_invested,
+                    0.0,
+                    0.0,
+                    0.0,
+                )
             )
             continue
 
         # Valor atual na moeda original
-        current_value_original = quantity * current_price if current_price else None
-
-        # Converter para BRL
-        if pos["currency"] == "USD" and current_value_original is not None:
-            current_value_brl = usd_to_brl(current_value_original)
-        else:
-            current_value_brl = current_value_original
-
-        # P&L
-        pnl_abs = (current_value_original - total_invested) if current_value_original else None
-        pnl_pct = (pnl_abs / total_invested * 100) if pnl_abs is not None and total_invested > 0 else None
-        pnl_with_div_pct = (
-            ((pnl_abs + dividends) / total_invested * 100) if pnl_abs is not None and total_invested > 0 else None
+        current_value_original = _calc_current_value(pos, current_price)
+        current_value_brl = _convert_to_brl(pos, current_value_original)
+        pnl_abs, pnl_pct, pnl_with_div_pct = _calc_pnl(
+            current_value_original,
+            total_invested,
+            dividends,
         )
 
         rows.append(
-            {
-                "ticker": ticker,
-                "company_name": pos.get("company_name", ""),
-                "sector": pos.get("sector", ""),
-                "market": pos.get("market", ""),
-                "currency": pos.get("currency", ""),
-                "analyst": pos.get("analyst", ""),
-                "quantity": quantity,
-                "avg_price": avg_price,
-                "total_invested": total_invested,
-                "dividends_received": dividends,
-                "current_price": current_price,
-                "current_value_original": current_value_original,
-                "current_value_brl": current_value_brl,
-                "pnl_abs": pnl_abs,
-                "pnl_pct": pnl_pct,
-                "pnl_with_div_pct": pnl_with_div_pct,
-                "weight": 0.0,  # calculado abaixo
-                "target_weight": target_weight,
-                "weight_gap": 0.0,  # calculado abaixo
-                "change_pct": change_pct,
-            }
+            _build_position_row(
+                pos,
+                current_price,
+                change_pct,
+                current_value_original,
+                current_value_brl,
+                pnl_abs,
+                pnl_pct,
+                pnl_with_div_pct,
+            )
         )
 
     df = pd.DataFrame(rows)
@@ -118,6 +114,35 @@ def build_portfolio_df(positions: list[dict], quotes: dict[str, dict]) -> pd.Dat
     return df
 
 
+def _calc_current_value(pos: dict, current_price: float | None) -> float | None:
+    """Calculate current value in original currency."""
+    quantity = float(pos.get("quantity", 0))
+    return quantity * current_price if current_price else None
+
+
+def _convert_to_brl(pos: dict, current_value_original: float | None) -> float | None:
+    """Convert value to BRL if position is in USD."""
+    if pos.get("currency") == "USD" and current_value_original is not None:
+        return usd_to_brl(current_value_original)
+    return current_value_original
+
+
+def _calc_pnl(
+    current_value_original: float | None,
+    total_invested: float,
+    dividends: float,
+) -> tuple[float | None, float | None, float | None]:
+    """Calculate P&L absolute, percentage, and with dividends."""
+    if not current_value_original:
+        return None, None, None
+    pnl_abs = current_value_original - total_invested
+    if total_invested <= 0:
+        return pnl_abs, None, None
+    pnl_pct = pnl_abs / total_invested * 100
+    pnl_with_div_pct = (pnl_abs + dividends) / total_invested * 100
+    return pnl_abs, pnl_pct, pnl_with_div_pct
+
+
 def calc_total_patrimony(df: pd.DataFrame) -> float:
     """Retorna patrimônio total em BRL."""
     return df["current_value_brl"].sum() if not df.empty else 0.0
@@ -128,20 +153,19 @@ def calc_total_pnl(df: pd.DataFrame) -> tuple[float, float]:
 
     Para posições US, converte o P&L de USD para BRL.
     """
-    total_invested_brl = 0.0
-    total_value_brl = 0.0
+    valid = df[df["current_value_original"].notna()].copy()
+    if valid.empty:
+        return 0.0, 0.0
 
-    for _, row in df.iterrows():
-        invested = row["total_invested"]
-        value = row["current_value_original"]
-        if value is None or pd.isna(value):
-            continue
-        if row["currency"] == "USD":
-            invested = usd_to_brl(invested)
-            value = usd_to_brl(value)
-        total_invested_brl += invested
-        total_value_brl += value
+    is_usd = valid["currency"] == "USD"
+    invested = valid["total_invested"].copy()
+    value = valid["current_value_original"].copy()
 
+    invested[is_usd] = invested[is_usd].apply(usd_to_brl)
+    value[is_usd] = value[is_usd].apply(usd_to_brl)
+
+    total_invested_brl = invested.sum()
+    total_value_brl = value.sum()
     pnl_abs = total_value_brl - total_invested_brl
     pnl_pct = (pnl_abs / total_invested_brl * 100) if total_invested_brl > 0 else 0.0
     return pnl_abs, pnl_pct
