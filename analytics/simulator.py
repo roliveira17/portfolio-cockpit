@@ -65,10 +65,10 @@ def simulate_rebalance(
 
     # Recalcular exposure com novos pesos simulados
     sim_df = portfolio_df.copy()
-    for i, row in sim_df.iterrows():
-        ticker = row["ticker"]
-        new_w = new_target_weights.get(ticker, row["weight"])
-        sim_df.at[i, "current_value_brl"] = total * (new_w / 100)
+    sim_df["current_value_brl"] = sim_df.apply(
+        lambda row: total * (new_target_weights.get(row["ticker"], row["weight"]) / 100),
+        axis=1,
+    )
     exposure_new = calc_factor_exposure(sim_df)
 
     return {
@@ -104,6 +104,12 @@ def simulate_new_trade(
         return {}
 
     row = portfolio_df[portfolio_df["ticker"] == ticker]
+
+    if action == "VENDER" and not row.empty:
+        current_qty = float(row.iloc[0]["quantity"])
+        if quantity > current_qty:
+            return {"error": f"Quantidade ({quantity}) excede posicao atual ({current_qty})"}
+
     is_usd = False
     if not row.empty:
         old_weight = float(row.iloc[0]["weight"])
@@ -137,11 +143,11 @@ def simulate_new_trade(
     hhi_old = _calc_hhi(old_weights)
 
     new_weights = old_weights.copy()
-    for i, r in portfolio_df.iterrows():
+    for idx, (_, r) in enumerate(portfolio_df.iterrows()):
         if r["ticker"] == ticker:
-            new_weights[i] = new_weight
+            new_weights[idx] = new_weight
         elif r["sector"] == "caixa":
-            new_weights[i] = (new_cash / new_total * 100) if new_total > 0 else 0
+            new_weights[idx] = (new_cash / new_total * 100) if new_total > 0 else 0
     hhi_new = _calc_hhi(new_weights)
 
     return {

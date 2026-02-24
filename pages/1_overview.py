@@ -24,13 +24,11 @@ from data.db import (
     save_portfolio_snapshot,
 )
 from data.market_data import fetch_all_quotes, fetch_weekly_changes
+from utils.auth import check_auth
 from utils.cache_info import record_fetch_time, show_freshness_badge
 from utils.formatting import fmt_brl, fmt_date, fmt_pct
 
-# Auth guard
-if not st.session_state.get("authenticated"):
-    st.warning("Faça login pela página principal.")
-    st.stop()
+check_auth()
 
 st.header("📊 Overview")
 
@@ -110,7 +108,7 @@ with col_left:
             values="value_brl",
             names="label",
             color="label",
-            color_discrete_map={row["label"]: row["color"] for _, row in sector_df.iterrows()},
+            color_discrete_map=dict(zip(sector_df["label"], sector_df["color"])),
             hole=0.45,
         )
         fig.update_traces(textposition="outside", textinfo="label+percent")
@@ -201,11 +199,12 @@ if not _latest_snap or _latest_snap.get("date") != _today:
     try:
         from utils.currency import brl_to_usd
 
-        _positions_data = [
-            {"ticker": r["ticker"], "value_brl": r["current_value_brl"]}
-            for _, r in df.iterrows()
-            if r["current_value_brl"]
-        ]
+        _valid = df[df["current_value_brl"].notna() & (df["current_value_brl"] > 0)]
+        _positions_data = (
+            _valid[["ticker", "current_value_brl"]]
+            .rename(columns={"current_value_brl": "value_brl"})
+            .to_dict("records")
+        )
         save_portfolio_snapshot(
             {
                 "date": _today,
@@ -216,4 +215,6 @@ if not _latest_snap or _latest_snap.get("date") != _today:
             }
         )
     except Exception:
-        pass  # falha silenciosa — snapshot é best-effort
+        import logging
+
+        logging.getLogger(__name__).warning("Falha ao salvar snapshot diario", exc_info=True)

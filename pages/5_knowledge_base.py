@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from data.db import get_all_deep_dives, get_analysis_reports, get_deep_dives_by_ticker
+from utils.auth import check_auth
 from utils.constants import (
     CONVICTION_LABELS,
     REPORT_TYPES,
@@ -12,10 +13,7 @@ from utils.constants import (
     TICKER_SECTOR,
 )
 
-# Auth guard
-if not st.session_state.get("authenticated"):
-    st.warning("Faça login pela página principal.")
-    st.stop()
+check_auth()
 
 
 def _fix_encoding(text: str) -> str:
