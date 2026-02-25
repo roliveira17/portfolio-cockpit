@@ -249,9 +249,8 @@ TREASURY_MATURITIES = [
 # ============================================================
 
 OPENROUTER_MODELS = {
-    "Claude Sonnet 4.6 (~$2.25/sessão)": {"id": "anthropic/claude-sonnet-4-20250514", "supports_vision": True},
-    "Claude Haiku 4.5 (~$0.75)": {"id": "anthropic/claude-haiku-4-20250514", "supports_vision": True},
-    "Claude Opus 4.6 (~$3.75)": {"id": "anthropic/claude-opus-4-20250514", "supports_vision": True},
+    "Claude Sonnet 4.6 (~$2.25/sessão)": {"id": "anthropic/claude-sonnet-4.6", "supports_vision": True},
+    "Claude Opus 4.6 (~$3.75)": {"id": "anthropic/claude-opus-4.6", "supports_vision": True},
     "Gemini 2.5 Flash (~$0.26)": {"id": "google/gemini-2.5-flash-preview", "supports_vision": True},
     "Gemini 2.5 Pro (~$1.06)": {"id": "google/gemini-2.5-pro-preview", "supports_vision": True},
     "GPT-4o (~$2.86)": {"id": "openai/gpt-4o", "supports_vision": True},
@@ -262,9 +261,8 @@ OPENROUTER_MODELS = {
 
 # Custo por 1M tokens (USD) — fonte: openrouter.ai/models
 OPENROUTER_PRICING = {
-    "anthropic/claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
-    "anthropic/claude-haiku-4-20250514": {"input": 0.80, "output": 4.0},
-    "anthropic/claude-opus-4-20250514": {"input": 15.0, "output": 75.0},
+    "anthropic/claude-sonnet-4.6": {"input": 3.0, "output": 15.0},
+    "anthropic/claude-opus-4.6": {"input": 5.0, "output": 25.0},
     "google/gemini-2.5-flash-preview": {"input": 0.15, "output": 0.60},
     "google/gemini-2.5-pro-preview": {"input": 1.25, "output": 10.0},
     "openai/gpt-4o": {"input": 2.50, "output": 10.0},

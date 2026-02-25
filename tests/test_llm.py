@@ -195,7 +195,7 @@ class TestFetchOpenRouterCredits:
 class TestCalculateCost:
     def test_known_model(self):
         # Claude Sonnet: input=3.0/1M, output=15.0/1M
-        cost = calculate_cost("anthropic/claude-sonnet-4-20250514", 1000, 500)
+        cost = calculate_cost("anthropic/claude-sonnet-4.6", 1000, 500)
         expected = (1000 / 1_000_000) * 3.0 + (500 / 1_000_000) * 15.0
         assert abs(cost - expected) < 1e-10
 
@@ -204,7 +204,7 @@ class TestCalculateCost:
         assert cost == 0.0
 
     def test_zero_tokens(self):
-        cost = calculate_cost("anthropic/claude-sonnet-4-20250514", 0, 0)
+        cost = calculate_cost("anthropic/claude-sonnet-4.6", 0, 0)
         assert cost == 0.0
 
 
@@ -218,7 +218,7 @@ class TestTrackUsage:
     def test_first_call_initializes(self):
         from data.llm import track_usage
 
-        track_usage("anthropic/claude-sonnet-4-20250514", 100, 50)
+        track_usage("anthropic/claude-sonnet-4.6", 100, 50)
         from data.llm import st
 
         usage = st.session_state["llm_usage"]
@@ -233,8 +233,8 @@ class TestTrackUsage:
     def test_accumulates(self):
         from data.llm import track_usage
 
-        track_usage("anthropic/claude-sonnet-4-20250514", 100, 50)
-        track_usage("anthropic/claude-sonnet-4-20250514", 200, 100)
+        track_usage("anthropic/claude-sonnet-4.6", 100, 50)
+        track_usage("anthropic/claude-sonnet-4.6", 200, 100)
         from data.llm import st
 
         usage = st.session_state["llm_usage"]
