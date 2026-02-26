@@ -3,7 +3,7 @@
 import base64
 import json
 import logging
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 
 import requests
 import streamlit as st
@@ -102,6 +102,109 @@ def stream_chat_response(messages: list[dict], model_key: str) -> Generator[str,
     except Exception as e:
         logger.warning(f"OpenRouter stream error: {e}")
         yield f"\n\n**Erro na API:** {e}"
+
+
+MAX_TOOL_ROUNDS = 3
+
+
+def stream_chat_response_with_tools(
+    messages: list[dict],
+    model_key: str,
+    tools: list[dict],
+    tool_executor: Callable[[str, dict], str],
+) -> Generator[str, None, None]:
+    """Stream chat with tool use support. Yields text chunks and status messages.
+
+    Tool call rounds are non-streaming for simplicity. Only the final text response
+    is streamed back to the caller.
+    """
+    model_id = OPENROUTER_MODELS[model_key]["id"]
+    working_messages = list(messages)
+
+    try:
+        client = get_openrouter_client()
+
+        for _round in range(MAX_TOOL_ROUNDS):
+            response = client.chat.completions.create(
+                model=model_id,
+                messages=working_messages,
+                tools=tools,
+                max_tokens=4096,
+            )
+            _track_usage_from_response(model_id, response)
+            choice = response.choices[0]
+
+            if choice.finish_reason != "tool_calls" and not choice.message.tool_calls:
+                # No tool calls — yield the final text
+                text = choice.message.content or ""
+                yield text
+                return
+
+            # Process tool calls
+            assistant_msg = {"role": "assistant", "content": choice.message.content or ""}
+            tool_calls_data = []
+            for tc in choice.message.tool_calls:
+                tool_calls_data.append(
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                    }
+                )
+
+            assistant_msg["tool_calls"] = tool_calls_data
+            working_messages.append(assistant_msg)
+
+            for tc in choice.message.tool_calls:
+                fn_name = tc.function.name
+                try:
+                    fn_args = json.loads(tc.function.arguments)
+                except (json.JSONDecodeError, TypeError):
+                    fn_args = {}
+
+                query = fn_args.get("query", fn_name)
+                yield f"> Buscando: {query}...\n\n"
+
+                result = tool_executor(fn_name, fn_args)
+                working_messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": result,
+                    }
+                )
+
+        # After max rounds, do a final call without tools
+        stream = client.chat.completions.create(
+            model=model_id,
+            messages=working_messages,
+            stream=True,
+            max_tokens=4096,
+            stream_options={"include_usage": True},
+        )
+        prompt_tokens = 0
+        completion_tokens = 0
+        for chunk in stream:
+            if chunk.choices and chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+            if hasattr(chunk, "usage") and chunk.usage is not None:
+                prompt_tokens = getattr(chunk.usage, "prompt_tokens", 0) or 0
+                completion_tokens = getattr(chunk.usage, "completion_tokens", 0) or 0
+        if prompt_tokens or completion_tokens:
+            track_usage(model_id, prompt_tokens, completion_tokens)
+
+    except Exception as e:
+        logger.warning(f"OpenRouter tool-use stream error: {e}")
+        yield f"\n\n**Erro na API:** {e}"
+
+
+def _track_usage_from_response(model_id: str, response: object) -> None:
+    """Extract and track usage from a non-streaming response object."""
+    if hasattr(response, "usage") and response.usage is not None:
+        prompt_tokens = getattr(response.usage, "prompt_tokens", 0) or 0
+        completion_tokens = getattr(response.usage, "completion_tokens", 0) or 0
+        if prompt_tokens or completion_tokens:
+            track_usage(model_id, prompt_tokens, completion_tokens)
 
 
 def call_chat_response(messages: list[dict], model_key: str) -> str:

@@ -28,7 +28,9 @@ from data.llm import (
     extract_structured_data,
     fetch_openrouter_credits,
     stream_chat_response,
+    stream_chat_response_with_tools,
 )
+from data.web_search import WEB_SEARCH_TOOL, execute_web_search, is_search_available
 from utils.auth import check_auth
 from utils.constants import OPENROUTER_MODELS, THESIS_STATUS
 from utils.formatting import fmt_date
@@ -267,6 +269,10 @@ with top1:
         key="model_selector",
     )
     st.session_state["selected_model"] = model_key
+    model_config = OPENROUTER_MODELS[model_key]
+    has_native_search = model_config.get("has_web_search", False)
+    if has_native_search:
+        st.caption("🌐 Este modelo pesquisa a web automaticamente")
 with top2:
     uploaded_image = None
     if OPENROUTER_MODELS[model_key].get("supports_vision"):
@@ -277,6 +283,11 @@ with top2:
         )
     else:
         st.caption("Modelo nao suporta imagens.")
+
+# Web search toggle — only when Tavily is available and model supports tool use (not native search)
+web_search_enabled = False
+if not has_native_search and is_search_available() and model_config.get("supports_tools", True):
+    web_search_enabled = st.toggle("🔍 Busca web", key="web_search_toggle")
 
 # ============================================================
 # Pending save confirmation
@@ -361,8 +372,23 @@ if prompt := st.chat_input("Pergunte ao comite de investimentos..."):
     api_messages = [{"role": "system", "content": system_content}]
     api_messages.extend(st.session_state["chat_messages"])
 
+    def _tool_executor(fn_name: str, fn_args: dict) -> str:
+        if fn_name == "web_search":
+            return execute_web_search(
+                query=fn_args.get("query", ""),
+                search_depth=fn_args.get("search_depth", "basic"),
+                topic=fn_args.get("topic", "general"),
+                max_results=fn_args.get("max_results", 5),
+            )
+        return f"Ferramenta desconhecida: {fn_name}"
+
     with st.chat_message("assistant"):
-        response_text = st.write_stream(stream_chat_response(api_messages, model_key))
+        if web_search_enabled:
+            response_text = st.write_stream(
+                stream_chat_response_with_tools(api_messages, model_key, [WEB_SEARCH_TOOL], _tool_executor)
+            )
+        else:
+            response_text = st.write_stream(stream_chat_response(api_messages, model_key))
 
     st.session_state["chat_messages"].append({"role": "assistant", "content": response_text})
 
