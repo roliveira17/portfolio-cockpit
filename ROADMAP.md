@@ -1,6 +1,6 @@
 # ROADMAP — Portfolio Cockpit
 
-> Última atualização: 2026-02-22
+> Última atualização: 2026-02-25
 > Spec: docs/specs/PRD.md
 
 ---
@@ -19,14 +19,17 @@
 | 8 — Bug Fixes | 2026/02/21 | Caixa/fundos no patrimônio, top movers semanais, model_key fix, exposição duplicada, freshness badge, colunas Positions, import CSV, seed 15 catalisadores | 12 |
 | 9 — Ajustes Finais | 2026/02/21 | EWY em mapeamentos, catalisadores atualizados, ibov_10pct normalizado, CSV importer robusto | 4 |
 | 10 — Security Fix | 2026/02/22 | Fix auth bypass (session_state + auth guards em 7 páginas), PR #11 | 1 |
+| 11 — Code Quality | 2026/02/22 | Consolidar auth guard, remover iterrows, vetorizar cálculos, corrigir bugs analytics, PR #12 | 2 |
+| 12 — Web Search | 2026/02/25 | Busca web no Chat Assessor: 3 modelos Perplexity Sonar (busca nativa), Tavily tool use (qualquer modelo), toggle UI, 23 testes novos, PR #14 | 3 |
 
-**Total: 108 tasks concluídas, 321 testes passando em ~1.7s**
+**Total: 113 tasks concluídas, 344 testes passando em ~2.0s**
 
 ---
 
 ## Pendente — Ações Manuais
 
 - [ ] Teste manual: chat (streaming, vision), salvar análise, atualizar posição, KB filtros
+- [ ] Teste manual: busca web — Sonar (notícias SUZB3), Claude + Tavily toggle (releases NVDA)
 - [ ] ~~Tema dark/light~~ DEPRIORITIZADO (Streamlit não suporta toggle runtime)
 
 ---
@@ -36,4 +39,5 @@
 - Spec (modelo de dados, APIs): `docs/specs/PRD.md`
 - Framework de análise: `knowledge_base/frameworks/framework_analise.md`
 - Deep dives (18 arquivos): `knowledge_base/deepdives/`
-- Chat usa OpenRouter (9 modelos). Antigo `4_thesis_board.py` → `4_chat.py`
+- Chat usa OpenRouter (12 modelos, 3 com busca web nativa). Antigo `4_thesis_board.py` → `4_chat.py`
+- Busca web: Perplexity Sonar (nativa) + Tavily API (tool use, free tier 1000 buscas/mês)
