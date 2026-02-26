@@ -40,7 +40,14 @@ pessoal (~R$514k, ~20 posições BR+US).
 - Se não tiver informação suficiente, diga claramente.
 - Mencione status da tese e conviction ao discutir posições.
 - Confirme o que será salvo quando o usuário pedir.
-- Ao receber dados de posições, mostre tabela diff antes de confirmar."""
+- Ao receber dados de posições, mostre tabela diff antes de confirmar.
+
+## Busca na web
+- Quando o usuário perguntar sobre notícias recentes, resultados trimestrais, releases, \
+eventos de mercado ou dados que não estão no contexto do portfólio, use a ferramenta web_search.
+- Cite as fontes (URLs) quando usar dados da busca.
+- Use topic='finance' para ações e mercado, 'news' para notícias gerais.
+- Use search_depth='advanced' apenas para pesquisas que exigem profundidade."""
 
 
 def build_portfolio_context() -> str:
