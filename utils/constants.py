@@ -256,8 +256,23 @@ OPENROUTER_MODELS = {
     "Gemini 2.5 Pro (~$1.06)": {"id": "google/gemini-2.5-pro-preview", "supports_vision": True},
     "GPT-4o (~$2.86)": {"id": "openai/gpt-4o", "supports_vision": True},
     "GPT-4o-mini (~$0.17)": {"id": "openai/gpt-4o-mini", "supports_vision": True},
-    "DeepSeek R1 (~$0.92)": {"id": "deepseek/deepseek-r1", "supports_vision": False},
-    "Kimi K2": {"id": "moonshotai/kimi-k2", "supports_vision": False},
+    "DeepSeek R1 (~$0.92)": {"id": "deepseek/deepseek-r1", "supports_vision": False, "supports_tools": False},
+    "Kimi K2": {"id": "moonshotai/kimi-k2", "supports_vision": False, "supports_tools": False},
+    "Sonar — Busca Web (~$0.01)": {
+        "id": "perplexity/sonar",
+        "supports_vision": False,
+        "has_web_search": True,
+    },
+    "Sonar Pro — Busca Profunda (~$0.05)": {
+        "id": "perplexity/sonar-pro",
+        "supports_vision": False,
+        "has_web_search": True,
+    },
+    "Sonar Deep Research (~$0.05)": {
+        "id": "perplexity/sonar-deep-research",
+        "supports_vision": False,
+        "has_web_search": True,
+    },
 }
 
 # Custo por 1M tokens (USD) — fonte: openrouter.ai/models
@@ -271,4 +286,7 @@ OPENROUTER_PRICING = {
     "openai/gpt-4o-mini": {"input": 0.15, "output": 0.60},
     "deepseek/deepseek-r1": {"input": 0.55, "output": 2.19},
     "moonshotai/kimi-k2": {"input": 0.60, "output": 2.00},
+    "perplexity/sonar": {"input": 1.0, "output": 1.0},
+    "perplexity/sonar-pro": {"input": 3.0, "output": 15.0},
+    "perplexity/sonar-deep-research": {"input": 2.0, "output": 8.0},
 }
