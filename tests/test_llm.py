@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from data.llm import (
     _parse_json_from_response,
     _summarize_conversation,
+    _track_usage_from_response,
     build_vision_content,
     calculate_cost,
 )
@@ -316,3 +317,197 @@ class TestCallCapturesUsage:
         usage = st.session_state.get("llm_usage", {})
         assert usage["total_tokens"] == 120
         assert usage["request_count"] == 1
+
+
+# ============================================================
+# calculate_cost — Perplexity models
+# ============================================================
+
+
+class TestCalculateCostPerplexity:
+    def test_sonar_cost(self):
+        # Sonar: input=1.0/1M, output=1.0/1M
+        cost = calculate_cost("perplexity/sonar", 10000, 5000)
+        expected = (10000 / 1_000_000) * 1.0 + (5000 / 1_000_000) * 1.0
+        assert abs(cost - expected) < 1e-10
+
+    def test_sonar_pro_cost(self):
+        # Sonar Pro: input=3.0/1M, output=15.0/1M
+        cost = calculate_cost("perplexity/sonar-pro", 10000, 5000)
+        expected = (10000 / 1_000_000) * 3.0 + (5000 / 1_000_000) * 15.0
+        assert abs(cost - expected) < 1e-10
+
+    def test_sonar_deep_research_cost(self):
+        # Sonar Deep Research: input=2.0/1M, output=8.0/1M
+        cost = calculate_cost("perplexity/sonar-deep-research", 10000, 5000)
+        expected = (10000 / 1_000_000) * 2.0 + (5000 / 1_000_000) * 8.0
+        assert abs(cost - expected) < 1e-10
+
+
+# ============================================================
+# _track_usage_from_response
+# ============================================================
+
+
+class TestTrackUsageFromResponse:
+    @patch("data.llm.st.session_state", {})
+    def test_tracks_from_response_with_usage(self):
+        response = MagicMock()
+        response.usage.prompt_tokens = 100
+        response.usage.completion_tokens = 50
+        _track_usage_from_response("anthropic/claude-sonnet-4-20250514", response)
+
+        from data.llm import st
+
+        usage = st.session_state.get("llm_usage", {})
+        assert usage["total_tokens"] == 150
+        assert usage["request_count"] == 1
+
+    @patch("data.llm.st.session_state", {})
+    def test_skips_when_no_usage(self):
+        response = MagicMock()
+        response.usage = None
+        _track_usage_from_response("anthropic/claude-sonnet-4-20250514", response)
+
+        from data.llm import st
+
+        assert "llm_usage" not in st.session_state
+
+
+# ============================================================
+# stream_chat_response_with_tools
+# ============================================================
+
+
+class TestStreamWithTools:
+    @patch("data.llm.st.session_state", {})
+    @patch("data.llm.get_openrouter_client")
+    def test_no_tool_calls_returns_text(self, mock_get_client):
+        """When model doesn't call any tool, yield text directly."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].finish_reason = "stop"
+        mock_response.choices[0].message.content = "Aqui esta a resposta"
+        mock_response.choices[0].message.tool_calls = None
+        mock_response.usage = MagicMock()
+        mock_response.usage.prompt_tokens = 50
+        mock_response.usage.completion_tokens = 30
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_get_client.return_value = mock_client
+
+        from data.llm import stream_chat_response_with_tools
+
+        executor = MagicMock(return_value="search results")
+        chunks = list(
+            stream_chat_response_with_tools(
+                [{"role": "user", "content": "Ola"}],
+                "Claude Sonnet 4.6 (~$2.25/sess\u00e3o)",
+                [{"type": "function", "function": {"name": "web_search"}}],
+                executor,
+            )
+        )
+        assert "Aqui esta a resposta" in chunks
+        executor.assert_not_called()
+
+    @patch("data.llm.st.session_state", {})
+    @patch("data.llm.get_openrouter_client")
+    def test_with_tool_call(self, mock_get_client):
+        """When model calls a tool, execute it and return final answer."""
+        # First call: model requests tool
+        tool_call = MagicMock()
+        tool_call.id = "call_123"
+        tool_call.function.name = "web_search"
+        tool_call.function.arguments = '{"query": "SUZB3 news"}'
+
+        first_response = MagicMock()
+        first_response.choices = [MagicMock()]
+        first_response.choices[0].finish_reason = "tool_calls"
+        first_response.choices[0].message.content = ""
+        first_response.choices[0].message.tool_calls = [tool_call]
+        first_response.usage = MagicMock()
+        first_response.usage.prompt_tokens = 100
+        first_response.usage.completion_tokens = 20
+
+        # Second call: model returns final text
+        second_response = MagicMock()
+        second_response.choices = [MagicMock()]
+        second_response.choices[0].finish_reason = "stop"
+        second_response.choices[0].message.content = "SUZB3 subiu 5%"
+        second_response.choices[0].message.tool_calls = None
+        second_response.usage = MagicMock()
+        second_response.usage.prompt_tokens = 200
+        second_response.usage.completion_tokens = 40
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = [first_response, second_response]
+        mock_get_client.return_value = mock_client
+
+        from data.llm import stream_chat_response_with_tools
+
+        executor = MagicMock(return_value="Search result: SUZB3 up 5%")
+        chunks = list(
+            stream_chat_response_with_tools(
+                [{"role": "user", "content": "Noticias SUZB3"}],
+                "Claude Sonnet 4.6 (~$2.25/sess\u00e3o)",
+                [{"type": "function", "function": {"name": "web_search"}}],
+                executor,
+            )
+        )
+
+        # Should have status message and final text
+        full_text = "".join(chunks)
+        assert "Buscando: SUZB3 news" in full_text
+        assert "SUZB3 subiu 5%" in full_text
+        executor.assert_called_once_with("web_search", {"query": "SUZB3 news"})
+
+    @patch("data.llm.st.session_state", {})
+    @patch("data.llm.get_openrouter_client")
+    def test_tracks_usage_on_tool_rounds(self, mock_get_client):
+        """Usage is tracked for each non-streaming round."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].finish_reason = "stop"
+        mock_response.choices[0].message.content = "Done"
+        mock_response.choices[0].message.tool_calls = None
+        mock_response.usage = MagicMock()
+        mock_response.usage.prompt_tokens = 100
+        mock_response.usage.completion_tokens = 50
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_get_client.return_value = mock_client
+
+        from data.llm import stream_chat_response_with_tools
+
+        list(
+            stream_chat_response_with_tools(
+                [{"role": "user", "content": "Hi"}],
+                "Claude Sonnet 4.6 (~$2.25/sess\u00e3o)",
+                [],
+                MagicMock(),
+            )
+        )
+
+        from data.llm import st
+
+        usage = st.session_state.get("llm_usage", {})
+        assert usage["total_tokens"] == 150
+        assert usage["request_count"] == 1
+
+    @patch("data.llm.st.session_state", {})
+    @patch("data.llm.get_openrouter_client", side_effect=Exception("API down"))
+    def test_api_error(self, mock_get_client):
+        """API errors are yielded as error messages."""
+        from data.llm import stream_chat_response_with_tools
+
+        chunks = list(
+            stream_chat_response_with_tools(
+                [{"role": "user", "content": "Hi"}],
+                "Claude Sonnet 4.6 (~$2.25/sess\u00e3o)",
+                [],
+                MagicMock(),
+            )
+        )
+        assert any("Erro na API" in c for c in chunks)
