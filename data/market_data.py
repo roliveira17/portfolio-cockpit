@@ -6,7 +6,7 @@ import requests
 import streamlit as st
 import yfinance as yf
 
-from utils.constants import CACHE_TTL_QUOTES, TICKERS_BR, TICKERS_US
+from utils.constants import CACHE_TTL_MACRO, CACHE_TTL_QUOTES, TICKERS_BR, TICKERS_NO_FUNDAMENTALS, TICKERS_US
 
 logger = logging.getLogger(__name__)
 
@@ -244,6 +244,58 @@ def fetch_price_history(ticker: str, period: str = "6mo", market: str = "BR"):
     if hasattr(data.columns, "droplevel"):
         data.columns = data.columns.droplevel(1) if data.columns.nlevels > 1 else data.columns
     return data[["Close"]].rename(columns={"Close": "close"}).reset_index()
+
+
+# ============================================================
+# Dados Fundamentalistas (yfinance .info)
+# ============================================================
+
+_YF_TO_FUNDAMENTAL = {
+    "trailingPE": "trailing_pe",
+    "forwardPE": "forward_pe",
+    "priceToBook": "price_to_book",
+    "enterpriseToEbitda": "ev_ebitda",
+    "trailingAnnualDividendYield": "dividend_yield",
+    "revenueGrowth": "revenue_growth",
+    "profitMargins": "profit_margin",
+    "returnOnEquity": "roe",
+    "debtToEquity": "debt_to_equity",
+}
+
+
+@st.cache_data(ttl=CACHE_TTL_MACRO)
+def fetch_fundamentals(tickers_br: list[str], tickers_us: list[str]) -> dict[str, dict]:
+    """Busca dados fundamentalistas via yfinance .info.
+
+    Returns:
+        {ticker: {trailing_pe, forward_pe, price_to_book, ...}} com valores normalizados.
+    """
+    results = {}
+
+    all_tickers = []
+    for t in tickers_br:
+        if t not in TICKERS_NO_FUNDAMENTALS:
+            all_tickers.append((t, f"{t}.SA"))
+    for t in tickers_us:
+        if t not in TICKERS_NO_FUNDAMENTALS:
+            all_tickers.append((t, t))
+
+    for original, yf_symbol in all_tickers:
+        try:
+            ticker_obj = yf.Ticker(yf_symbol)
+            info = ticker_obj.info
+            if not info:
+                continue
+
+            fundamentals = {}
+            for yf_key, our_key in _YF_TO_FUNDAMENTAL.items():
+                fundamentals[our_key] = info.get(yf_key)
+
+            results[original] = fundamentals
+        except Exception:
+            logger.warning("yfinance .info falhou para %s", yf_symbol)
+
+    return results
 
 
 # ============================================================
