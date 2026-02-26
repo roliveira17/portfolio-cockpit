@@ -88,3 +88,15 @@ Configurações → Privacidade e Segurança → Segurança do Windows → Contr
 **Problema:** `FACTOR_SENSITIVITIES["ibov_10pct"]` usava betas brutos (1.2, 0.6) enquanto os outros fatores usam impacto proporcional (-0.05, +0.08). Ao calcular stress test com IBOV -10%, INBR32 mostrava -120% em vez de -12%.
 
 **Solução:** Dividir betas por 10 para converter para escala proporcional: beta 1.2 → 0.12 (= 12% de impacto quando IBOV move 10%). Adicionar comentário explicando a escala.
+
+---
+
+## 2026-02-25 — html5lib faltando faz curva DI nunca aparecer
+
+**Problema:** A curva DI x Pré nunca aparecia na UI. A mensagem "Verifique se é dia útil" era mostrada mesmo em dias úteis. O `except Exception` em `yield_curve.py` engolia o `ImportError` real.
+
+**Causa:** `pyettj` usa `pd.read_html(flavor="bs4")` internamente, que depende de `html5lib`. Sem essa lib, `pd.read_html` levanta `ImportError`, que era capturada pelo `except Exception` genérico.
+
+**Solução:** Adicionar `html5lib>=1.1` às dependências. Melhorar o except para logar o erro específico em vez de mensagem genérica. Melhorar mensagem da UI para "Pode ser feriado ou problema de conexão" (mais honesto).
+
+**Lição:** Dependências transitivas implícitas (lib A precisa de lib B que não está no requirements) são armadilhas silenciosas. `except Exception` sem logging do erro real é a pior combinação — esconde o problema completamente.

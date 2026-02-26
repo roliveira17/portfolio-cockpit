@@ -160,3 +160,25 @@
 **Model selection para LLMs com fallback chain:**
 - Ordem de preferência: Flash/mini (baratos, rápidos) → Haiku → qualquer outro. Usar `next((k for k in MODELS if "Flash" in k or "mini" in k), fallback)`.
 - Validar model IDs contra a API real — IDs podem mudar entre versões.
+
+---
+
+## 2026-02-25 — Sessão 13: Sprint 14 (Fundamentalista + Fix DI)
+
+**Retorno de tupla para dados com metadados:**
+- `fetch_br_yield_curve()` retorna `(DataFrame, date_efetiva)` em vez de só DataFrame. Permite a UI mostrar de qual data são os dados e facilita comparação histórica.
+- Pattern útil quando a data real dos dados pode diferir da data solicitada (feriados, fins de semana).
+
+**Fallback para dias úteis com loop limitado:**
+- Tentar até N dias anteriores (N=5) resolve feriados e fins de semana sem depender de calendário de feriados.
+- `_get_last_business_day()` ajusta sábado/domingo para sexta antes de iniciar o loop — evita tentativas desnecessárias.
+
+**yfinance `.info` vs `.fast_info`:**
+- `.fast_info` é rápido (~100ms) mas só tem preço/volume/marketCap.
+- `.info` é lento (~1-2s por ticker) mas tem P/E, P/B, EV/EBITDA, ROE, margens, crescimento.
+- Cache de 1h (CACHE_TTL_MACRO) é adequado — fundamentals não mudam intraday.
+- Stocks BR (.SA) têm cobertura parcial — vários campos retornam None. Tratar com `info.get(key)`.
+
+**Comparativo setorial com mediana:**
+- `TICKER_SECTOR` em constants.py permite agrupar peers rapidamente.
+- Linha "Mediana Setor" no DataFrame dá contexto de valuation relativa sem precisar de benchmarks externos.

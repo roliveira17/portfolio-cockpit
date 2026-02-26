@@ -1,6 +1,6 @@
 # ROADMAP — Portfolio Cockpit
 
-> Última atualização: 2026-02-25
+> Última atualização: 2026-02-25 (Sprint 14)
 > Spec: docs/specs/PRD.md
 
 ---
@@ -21,8 +21,9 @@
 | 10 — Security Fix | 2026/02/22 | Fix auth bypass (session_state + auth guards em 7 páginas), PR #11 | 1 |
 | 11 — Code Quality | 2026/02/22 | Consolidar auth guard, remover iterrows, vetorizar cálculos, corrigir bugs analytics, PR #12 | 2 |
 | 12 — Web Search | 2026/02/25 | Busca web no Chat Assessor: 3 modelos Perplexity Sonar (busca nativa), Tavily tool use (qualquer modelo), toggle UI, 23 testes novos, PR #14 | 3 |
+| 14 — Fundamentalista + Fix DI | 2026/02/25 | Fix curva DI (html5lib + fallback dia util), comparacao historica DI, dados fundamentalistas via yfinance .info, cards valuation + comparativo setorial, 36 testes novos, PR #15 | 4 |
 
-**Total: 113 tasks concluídas, 344 testes passando em ~2.0s**
+**Total: 117 tasks concluídas, 357 testes passando em ~3.3s**
 
 ---
 
@@ -30,6 +31,8 @@
 
 - [ ] Teste manual: chat (streaming, vision), salvar análise, atualizar posição, KB filtros
 - [ ] Teste manual: busca web — Sonar (notícias SUZB3), Claude + Tavily toggle (releases NVDA)
+- [ ] Teste manual: curva DI (dia util, date picker historico, sabado → sexta)
+- [ ] Teste manual: fundamentais (NVDA cards, SUZB3 parcial, comparativo setorial, CAIXA oculto)
 - [ ] ~~Tema dark/light~~ DEPRIORITIZADO (Streamlit não suporta toggle runtime)
 
 ---
@@ -41,3 +44,5 @@
 - Deep dives (18 arquivos): `knowledge_base/deepdives/`
 - Chat usa OpenRouter (12 modelos, 3 com busca web nativa). Antigo `4_thesis_board.py` → `4_chat.py`
 - Busca web: Perplexity Sonar (nativa) + Tavily API (tool use, free tier 1000 buscas/mês)
+- Fundamentais: `fetch_fundamentals()` via yfinance `.info` (cache 1h), `FUNDAMENTAL_FIELDS` em constants.py
+- Curva DI: `fetch_br_yield_curve()` retorna tupla `(DataFrame, date)`, fallback até 5 dias úteis
