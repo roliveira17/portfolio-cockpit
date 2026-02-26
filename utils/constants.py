@@ -230,6 +230,24 @@ COMMODITIES_TICKERS = [
 # Treasury Yield Curve — maturidades padrão
 # ============================================================
 
+# ============================================================
+# Dados Fundamentalistas — campos yfinance .info
+# ============================================================
+
+FUNDAMENTAL_FIELDS = {
+    "trailing_pe": {"label": "P/E", "format": ".1f", "lower_better": True},
+    "forward_pe": {"label": "P/E (Fwd)", "format": ".1f", "lower_better": True},
+    "price_to_book": {"label": "P/B", "format": ".1f", "lower_better": True},
+    "ev_ebitda": {"label": "EV/EBITDA", "format": ".1f", "lower_better": True},
+    "dividend_yield": {"label": "DY", "format": ".1%", "lower_better": False},
+    "revenue_growth": {"label": "Cresc. Receita", "format": ".1%", "lower_better": False},
+    "profit_margin": {"label": "Margem Liq.", "format": ".1%", "lower_better": False},
+    "roe": {"label": "ROE", "format": ".1%", "lower_better": False},
+    "debt_to_equity": {"label": "D/E", "format": ".1f", "lower_better": True},
+}
+
+TICKERS_NO_FUNDAMENTALS = ["CAIXA", "FIDC_MICROCREDITO", "ELET_FMP", "EWY"]
+
 TREASURY_MATURITIES = [
     {"tag": "BC_1MONTH", "label": "1M", "years": 1 / 12},
     {"tag": "BC_3MONTH", "label": "3M", "years": 3 / 12},

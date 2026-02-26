@@ -1,4 +1,4 @@
-"""Testes para data/market_data.py — cotações BR (brapi) e US (yfinance) com mocks."""
+"""Testes para data/market_data.py — cotacoes BR (brapi) e US (yfinance) com mocks."""
 
 from unittest.mock import MagicMock, patch
 
@@ -11,6 +11,7 @@ from data.market_data import (
     _fetch_yfinance,
     _fetch_yfinance_br,
     fetch_all_quotes,
+    fetch_fundamentals,
 )
 
 # ============================================================
@@ -164,3 +165,128 @@ class TestFetchAllQuotes:
         result = fetch_all_quotes()
         assert "INBR32" in result
         assert "NVDA" in result
+
+
+# ============================================================
+# fetch_fundamentals
+# ============================================================
+
+
+def _make_yf_info(overrides: dict | None = None) -> dict:
+    """Helper: cria dict .info padrao com campos fundamentais."""
+    base = {
+        "trailingPE": 45.2,
+        "forwardPE": 30.1,
+        "priceToBook": 38.5,
+        "enterpriseToEbitda": 35.2,
+        "trailingAnnualDividendYield": 0.003,
+        "revenueGrowth": 0.94,
+        "profitMargins": 0.55,
+        "returnOnEquity": 1.15,
+        "debtToEquity": 17.2,
+    }
+    if overrides:
+        base.update(overrides)
+    return base
+
+
+class TestFetchFundamentals:
+    @patch("data.market_data.yf.Ticker")
+    @patch("data.market_data.st")
+    def test_us_stock(self, mock_st, mock_ticker):
+        mock_ticker.return_value.info = _make_yf_info()
+
+        result = fetch_fundamentals.__wrapped__([], ["NVDA"])
+
+        assert "NVDA" in result
+        assert result["NVDA"]["trailing_pe"] == 45.2
+        assert result["NVDA"]["roe"] == 1.15
+        assert result["NVDA"]["ev_ebitda"] == 35.2
+
+    @patch("data.market_data.yf.Ticker")
+    @patch("data.market_data.st")
+    def test_br_stock_sa_suffix(self, mock_st, mock_ticker):
+        mock_ticker.return_value.info = _make_yf_info({"trailingPE": 8.1})
+
+        result = fetch_fundamentals.__wrapped__(["SUZB3"], [])
+
+        assert "SUZB3" in result
+        assert result["SUZB3"]["trailing_pe"] == 8.1
+        # Verifica que foi chamado com .SA
+        mock_ticker.assert_called_with("SUZB3.SA")
+
+    @patch("data.market_data.yf.Ticker")
+    @patch("data.market_data.st")
+    def test_missing_fields_returns_none(self, mock_st, mock_ticker):
+        partial_info = {
+            "trailingPE": 12.0,
+            "priceToBook": 2.5,
+        }
+        mock_ticker.return_value.info = partial_info
+
+        result = fetch_fundamentals.__wrapped__(["ENGI4"], [])
+
+        assert "ENGI4" in result
+        assert result["ENGI4"]["trailing_pe"] == 12.0
+        assert result["ENGI4"]["forward_pe"] is None
+        assert result["ENGI4"]["ev_ebitda"] is None
+
+    @patch("data.market_data.yf.Ticker")
+    @patch("data.market_data.st")
+    def test_excludes_special_tickers(self, mock_st, mock_ticker):
+        mock_ticker.return_value.info = _make_yf_info()
+
+        result = fetch_fundamentals.__wrapped__(["CAIXA", "FIDC_MICROCREDITO"], ["EWY"])
+
+        assert "CAIXA" not in result
+        assert "FIDC_MICROCREDITO" not in result
+        assert "EWY" not in result
+        mock_ticker.assert_not_called()
+
+    @patch("data.market_data.yf.Ticker")
+    @patch("data.market_data.st")
+    def test_api_error_skips_ticker(self, mock_st, mock_ticker):
+        mock_ticker.return_value.info.__getitem__ = MagicMock(side_effect=Exception("API error"))
+        mock_ticker.side_effect = Exception("connection failed")
+
+        result = fetch_fundamentals.__wrapped__([], ["NVDA"])
+
+        assert result == {}
+
+    @patch("data.market_data.st")
+    def test_empty_input(self, mock_st):
+        result = fetch_fundamentals.__wrapped__([], [])
+        assert result == {}
+
+    @patch("data.market_data.yf.Ticker")
+    @patch("data.market_data.st")
+    def test_mixed_br_us(self, mock_st, mock_ticker):
+        call_count = [0]
+
+        def side_effect(symbol):
+            call_count[0] += 1
+            mock_obj = MagicMock()
+            if symbol == "NVDA":
+                mock_obj.info = _make_yf_info({"trailingPE": 45.0})
+            else:
+                mock_obj.info = _make_yf_info({"trailingPE": 8.0})
+            return mock_obj
+
+        mock_ticker.side_effect = side_effect
+
+        result = fetch_fundamentals.__wrapped__(["SUZB3"], ["NVDA"])
+
+        assert "SUZB3" in result
+        assert "NVDA" in result
+        assert result["SUZB3"]["trailing_pe"] == 8.0
+        assert result["NVDA"]["trailing_pe"] == 45.0
+
+    @patch("data.market_data.yf.Ticker")
+    @patch("data.market_data.st")
+    def test_dividend_yield_range(self, mock_st, mock_ticker):
+        mock_ticker.return_value.info = _make_yf_info({"trailingAnnualDividendYield": 0.065})
+
+        result = fetch_fundamentals.__wrapped__([], ["TSM"])
+
+        assert result["TSM"]["dividend_yield"] == pytest.approx(0.065)
+        assert 0 <= result["TSM"]["dividend_yield"] <= 1.0

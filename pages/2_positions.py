@@ -7,10 +7,10 @@ import streamlit as st
 
 from analytics.portfolio import build_portfolio_df
 from data.db import get_position_by_ticker, get_positions, get_theses, insert_row, update_row
-from data.market_data import fetch_all_quotes, fetch_batch_price_history, fetch_weekly_changes
+from data.market_data import fetch_all_quotes, fetch_batch_price_history, fetch_fundamentals, fetch_weekly_changes
 from utils.auth import check_auth
 from utils.cache_info import record_fetch_time, show_freshness_badge
-from utils.constants import TICKER_SECTOR, TICKERS_BR, TICKERS_US
+from utils.constants import FUNDAMENTAL_FIELDS, TICKER_SECTOR, TICKERS_BR, TICKERS_NO_FUNDAMENTALS, TICKERS_US
 from utils.formatting import fmt_brl, fmt_pct, fmt_usd
 
 check_auth()
@@ -245,8 +245,79 @@ if tickers:
     # --- Botão "Analisar" (análise IA rápida) ---
     _show_analyze_button(row, theses_by_ticker)
 
+    # --- Valuation (dados fundamentalistas) ---
+    if selected_ticker not in TICKERS_NO_FUNDAMENTALS and row.get("sector") not in ("caixa", "fundos"):
+        fundamentals_data = fetch_fundamentals(TICKERS_BR, TICKERS_US)
+        ticker_fund = fundamentals_data.get(selected_ticker)
+
+        if ticker_fund:
+            st.markdown("---")
+            st.markdown("#### Valuation")
+
+            def _fmt_fundamental(value: float | None, fmt_spec: str) -> str:
+                if value is None:
+                    return "\u2014"
+                return f"{value:{fmt_spec}}"
+
+            row1 = ["trailing_pe", "price_to_book", "ev_ebitda"]
+            row2 = ["dividend_yield", "revenue_growth", "profit_margin"]
+            row3 = ["roe", "debt_to_equity", "forward_pe"]
+
+            for metric_row in [row1, row2, row3]:
+                cols_fund = st.columns(3)
+                for i, key in enumerate(metric_row):
+                    field = FUNDAMENTAL_FIELDS[key]
+                    val = ticker_fund.get(key)
+                    with cols_fund[i]:
+                        st.metric(field["label"], _fmt_fundamental(val, field["format"]))
+
+            # --- Comparativo Setorial ---
+            sector = TICKER_SECTOR.get(selected_ticker)
+            if sector:
+                sector_tickers = [
+                    t for t, s in TICKER_SECTOR.items() if s == sector and t not in TICKERS_NO_FUNDAMENTALS
+                ]
+                if len(sector_tickers) >= 2:
+                    st.markdown("---")
+                    st.markdown("#### Comparativo Setorial")
+
+                    peer_keys = ["trailing_pe", "price_to_book", "ev_ebitda", "dividend_yield", "roe"]
+                    peer_rows = []
+                    for t in sector_tickers:
+                        t_fund = fundamentals_data.get(t, {})
+                        peer_row = {"Ticker": t}
+                        for key in peer_keys:
+                            peer_row[FUNDAMENTAL_FIELDS[key]["label"]] = t_fund.get(key)
+                        peer_rows.append(peer_row)
+
+                    import numpy as np
+                    import pandas as pd
+
+                    peer_df = pd.DataFrame(peer_rows)
+
+                    # Calcular mediana do setor
+                    median_row = {"Ticker": "Mediana Setor"}
+                    for key in peer_keys:
+                        label = FUNDAMENTAL_FIELDS[key]["label"]
+                        vals = [r[label] for r in peer_rows if r[label] is not None]
+                        median_row[label] = float(np.median(vals)) if vals else None
+                    peer_df = pd.concat([peer_df, pd.DataFrame([median_row])], ignore_index=True)
+
+                    col_config = {"Ticker": st.column_config.TextColumn("Ticker")}
+                    for key in peer_keys:
+                        label = FUNDAMENTAL_FIELDS[key]["label"]
+                        fmt_spec = FUNDAMENTAL_FIELDS[key]["format"]
+                        if "%" in fmt_spec:
+                            col_config[label] = st.column_config.NumberColumn(label, format="%.1f%%")
+                        else:
+                            col_config[label] = st.column_config.NumberColumn(label, format="%.1f")
+
+                    st.dataframe(peer_df, column_config=col_config, use_container_width=True, hide_index=True)
+                elif len(sector_tickers) == 1:
+                    st.caption("Apenas 1 posicao neste setor — sem comparativo.")
+
 # ============================================================
-# Registro de Transações
+# Registro de Transacoes
 # ============================================================
 
 st.markdown("---")

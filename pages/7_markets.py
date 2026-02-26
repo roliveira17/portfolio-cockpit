@@ -129,26 +129,57 @@ with tab_curves:
     # --- Curva BR (DI x Pré) ---
     with col_br:
         st.subheader("🇧🇷 DI x Pré (B3)")
-        br_curve = fetch_br_yield_curve()
+        br_curve, br_effective_date = fetch_br_yield_curve()
         if br_curve is not None and not br_curve.empty:
             fig_br = go.Figure()
+            br_label = f"Atual ({br_effective_date.strftime('%d/%m')})" if br_effective_date else "Atual"
             fig_br.add_trace(
                 go.Scatter(
                     x=br_curve["anos"],
                     y=br_curve["taxa"],
                     mode="lines+markers",
-                    name="DI x Pré",
+                    name=br_label,
                     line=dict(color="#1f77b4", width=2),
                     marker=dict(size=4),
                 )
             )
+
+            # Comparação histórica
+            hist_date = st.date_input(
+                "Comparar com:",
+                value=None,
+                key="di_hist_date",
+                help="Selecione uma data para comparar curvas",
+            )
+            if hist_date is not None:
+                hist_ref = hist_date.strftime("%d/%m/%Y")
+                hist_curve, hist_effective = fetch_br_yield_curve(ref_date=hist_ref)
+                if hist_curve is not None and not hist_curve.empty:
+                    hist_label = f"Historico ({hist_effective.strftime('%d/%m/%Y')})" if hist_effective else "Historico"
+                    fig_br.add_trace(
+                        go.Scatter(
+                            x=hist_curve["anos"],
+                            y=hist_curve["taxa"],
+                            mode="lines+markers",
+                            name=hist_label,
+                            line=dict(color="#ff7f0e", width=2, dash="dash"),
+                            marker=dict(size=4),
+                        )
+                    )
+                else:
+                    st.warning("Sem dados para a data selecionada.")
+
             fig_br.update_layout(
                 xaxis_title="Anos",
                 yaxis_title="Taxa (%)",
                 height=350,
                 margin=dict(t=20, b=40, l=50, r=20),
+                showlegend=True,
             )
             st.plotly_chart(fig_br, use_container_width=True)
+
+            if br_effective_date:
+                st.caption(f"Dados de {br_effective_date.strftime('%d/%m/%Y')}")
 
             # Tabela resumida — vértices principais
             key_vertices = br_curve[br_curve["dias_corridos"].isin([21, 63, 126, 252, 504, 756, 1260, 2520])]
@@ -157,7 +188,7 @@ with tab_curves:
                 display.columns = ["Dias (DU)", "Anos", "Taxa (%)"]
                 st.dataframe(display, use_container_width=True, hide_index=True)
         else:
-            st.info("Curva DI x Pré indisponível. Verifique se é dia útil.")
+            st.warning("Curva DI indisponivel. Pode ser feriado ou problema de conexao.")
 
     # --- Curva US (Treasury) ---
     with col_us:
