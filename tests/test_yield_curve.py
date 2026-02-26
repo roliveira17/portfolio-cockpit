@@ -1,6 +1,7 @@
 """Testes para data/yield_curve.py — curvas de juros BR (pyettj) e US (Treasury XML)."""
 
 import sys
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -16,6 +17,42 @@ def _make_pyettj_mock(return_df):
     mock_pyettj.ettj = mock_ettj
 
     return mock_pyettj, mock_ettj
+
+
+# ============================================================
+# _get_last_business_day
+# ============================================================
+
+
+class TestGetLastBusinessDay:
+    def _get_fn(self):
+        with patch("data.yield_curve.st"):
+            import importlib
+
+            import data.yield_curve
+
+            importlib.reload(data.yield_curve)
+            return data.yield_curve._get_last_business_day
+
+    def test_saturday_returns_friday(self):
+        fn = self._get_fn()
+        saturday = date(2026, 2, 21)  # sabado
+        result = fn(saturday)
+        assert result == date(2026, 2, 20)  # sexta
+        assert result.weekday() == 4
+
+    def test_sunday_returns_friday(self):
+        fn = self._get_fn()
+        sunday = date(2026, 2, 22)  # domingo
+        result = fn(sunday)
+        assert result == date(2026, 2, 20)  # sexta
+        assert result.weekday() == 4
+
+    def test_weekday_unchanged(self):
+        fn = self._get_fn()
+        wednesday = date(2026, 2, 25)  # quarta
+        result = fn(wednesday)
+        assert result == wednesday
 
 
 # ============================================================
@@ -39,6 +76,25 @@ class TestFetchBrYieldCurve:
                     return data.yield_curve.fetch_br_yield_curve.__wrapped__(ref_date)
                 return data.yield_curve.fetch_br_yield_curve.__wrapped__()
 
+    def _call_with_sequence(self, return_sequence, ref_date=None):
+        """Helper: mock pyettj.get_ettj com side_effect para simular fallback."""
+        mock_ettj = MagicMock()
+        mock_ettj.get_ettj = MagicMock(side_effect=return_sequence)
+
+        mock_pyettj = MagicMock()
+        mock_pyettj.ettj = mock_ettj
+
+        with patch.dict(sys.modules, {"pyettj": mock_pyettj, "pyettj.ettj": mock_ettj}):
+            with patch("data.yield_curve.st"):
+                import importlib
+
+                import data.yield_curve
+
+                importlib.reload(data.yield_curve)
+                if ref_date:
+                    return data.yield_curve.fetch_br_yield_curve.__wrapped__(ref_date)
+                return data.yield_curve.fetch_br_yield_curve.__wrapped__()
+
     def test_success(self):
         mock_df = pd.DataFrame(
             {
@@ -46,7 +102,7 @@ class TestFetchBrYieldCurve:
                 "taxa": [13.50, 14.00, 14.25, 14.50, 14.20],
             }
         )
-        result = self._call_with_mock(mock_df, "21/02/2026")
+        result, effective_date = self._call_with_mock(mock_df, "21/02/2026")
 
         assert result is not None
         assert "dias_corridos" in result.columns
@@ -54,13 +110,28 @@ class TestFetchBrYieldCurve:
         assert "anos" in result.columns
         assert len(result) == 5
 
+    def test_returns_effective_date(self):
+        mock_df = pd.DataFrame(
+            {
+                "dias_corridos": [252],
+                "taxa": [14.50],
+            }
+        )
+        result, effective_date = self._call_with_mock(mock_df, "20/02/2026")
+
+        assert result is not None
+        assert effective_date is not None
+        assert isinstance(effective_date, date)
+
     def test_pyettj_returns_none(self):
-        result = self._call_with_mock(None)
+        result, effective_date = self._call_with_mock(None)
         assert result is None
+        assert effective_date is None
 
     def test_pyettj_empty_df(self):
-        result = self._call_with_mock(pd.DataFrame())
+        result, effective_date = self._call_with_mock(pd.DataFrame())
         assert result is None
+        assert effective_date is None
 
     def test_anos_calculated_correctly(self):
         mock_df = pd.DataFrame(
@@ -69,7 +140,7 @@ class TestFetchBrYieldCurve:
                 "taxa": [14.50],
             }
         )
-        result = self._call_with_mock(mock_df)
+        result, _ = self._call_with_mock(mock_df)
 
         assert result is not None
         assert result.iloc[0]["anos"] == pytest.approx(1.0)
@@ -82,11 +153,28 @@ class TestFetchBrYieldCurve:
                 "Taxa (% a.a.)": [13.50, 14.00],
             }
         )
-        result = self._call_with_mock(mock_df)
+        result, _ = self._call_with_mock(mock_df)
 
         assert result is not None
         assert "dias_corridos" in result.columns
         assert "taxa" in result.columns
+
+    def test_fallback_to_previous_day(self):
+        """Primeira data retorna vazio, segunda funciona."""
+        valid_df = pd.DataFrame(
+            {
+                "dias_corridos": [21, 63, 252],
+                "taxa": [13.50, 14.00, 14.50],
+            }
+        )
+        # Primeira chamada retorna None (feriado), segunda retorna dados
+        sequence = [None, valid_df]
+
+        result, effective_date = self._call_with_sequence(sequence, "25/02/2026")
+
+        assert result is not None
+        assert len(result) == 3
+        assert effective_date is not None
 
 
 # ============================================================
